@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Velvet Teal Core - Added 'color-' prefix so Tailwind recognizes them */
+  --color-vt-50: #F0FAFB;
+  --color-vt-100: #DCF0F1;
+  --color-vt-200: #A8D9DC;
+  --color-vt-500: #2A9AA1;
+  --color-vt-600: #187E85;
+  --color-vt-700: #12686E;
+  --color-vt-800: #0E5257;
+  --color-vt-900: #0A3D42;
+  --color-vt-950: #062B2E;
+
+  /* Neutrals */
+  --color-ink-100: #F2F4F7;
+  --color-ink-300: #D0D5DD;
+  --color-ink-500: #667085;
+  --color-ink-700: #344054;
+  --color-ink-900: #0B1B1D;
+
+  /* Semantic */
+  --color-success: #067647;
+}
+
+/* Import Serif font */
+
+body {
+  background-color: #F8FAFC; 
+  color: var(--color-ink-900);
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+}
+
+/* Ensure text is dark by default */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-ink-900);
+}
+
+.font-serif {
+  font-family: 'Merriweather', serif;
+}
