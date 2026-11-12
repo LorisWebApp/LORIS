@@ -33,7 +33,7 @@ const tableRows = [
 ];
 const badgeVariants: StatusVariant[] = ['neutral', 'accent', 'success', 'warning', 'danger', 'info'];
 const cover = (c1: string, c2: string, t: string) => (
-  <div className="flex size-full items-center justify-center p-3 text-center text-[20px] text-white/90" style={{ background: `linear-gradient(160deg, ${c1}, ${c2})` }}>{t}</div>
+  <div className="flex size-full items-center justify-center p-3 text-center text-[18px] text-white/90" style={{ background: `linear-gradient(160deg, ${c1}, ${c2})` }}>{t}</div>
 );
 
 function Demo({ title, note, code, children }: { title: string; note?: string; code: string; children: ReactNode }) {
@@ -79,8 +79,8 @@ export default function ComponentShowcase() {
 
         <SectionHeader title="Typography" description="Newsreader throughout. Hierarchy comes from size, weight and case." />
         <div className="mt-6 space-y-3">
-          <p className="m-0 text-[56px] font-medium leading-none tracking-tight text-deep">Page heading</p>
-          <p className="m-0 text-[30px] font-medium leading-tight text-deep">Section heading</p>
+          <p className="m-0 text-[48px] font-medium leading-none tracking-tight text-deep">Page heading</p>
+          <p className="m-0 text-[28px] font-medium leading-tight text-deep">Section heading</p>
           <p className="m-0 text-[13px] font-semibold uppercase tracking-[0.12em] text-muted">Component label</p>
           <p className="m-0 max-w-xl text-[17px] leading-7 text-deep">Body text sets the reading rhythm for descriptions, answers and metadata across the library.</p>
           <p className="m-0 text-[15px] text-muted">Supporting information — dates, counts, hints.</p>
@@ -105,7 +105,7 @@ export default function ComponentShowcase() {
         <Demo title="Topbar" note="Slots for brand, navigation, page actions and user controls."
           code={`<Topbar brand={<Logo />} navigation={...} actions={<Button>New</Button>}\n  userControls={<><NotificationPanel .../><UserMenu .../></>} />`}>
           <div className="overflow-x-auto"><div className="min-w-[680px] border border-line">
-            <Topbar brand={<span className="text-[20px] font-semibold">LORIS</span>}
+            <Topbar brand={<span className="text-[18px] font-semibold">LORIS</span>}
               navigation={<><NavigationItem label="Browse" active /><NavigationItem label="My library" /></>}
               actions={<Button size="sm" leftIcon={<Download size={14} />}>Save offline</Button>}
               userControls={<><NotificationPanel notifications={sampleNotifications} /><UserMenu user={{ name: 'Jane Lee', email: 'jane@atlas.edu' }} items={[{ label: 'Profile' }]} /></>} />

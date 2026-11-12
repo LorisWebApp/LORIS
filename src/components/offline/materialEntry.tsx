@@ -33,13 +33,13 @@ export function toMaterialEntry(m: OfflineMaterialMetadata, { onOpen, onRemove }
       </>
     ),
     tag: { label: kindBadge[kind], variant: kind === 'pdf' ? 'danger' : 'accent' },
-    details: fileInfo(m).split(' • '),
+    details: mobile ? fileInfo(m).split(' • ').reverse() : fileInfo(m).split(' • '),
     status: mobile ? (
       <span className={`inline-flex items-center gap-1 font-semibold ${tone}`}>{valid ? 'Available offline' : 'Access expired'}</span>
     ) : (
       <span className={`inline-flex items-center gap-1.5 font-semibold ${tone}`}><i className={`size-1.5 rounded-full ${dot}`} />{valid ? 'Downloaded & Ready' : 'Offline access expired'}</span>
     ),
-    statusAside: mobile ? saved : <span className={`font-semibold ${tone}`}>{saved}</span>,
+    statusAside: mobile ? saved : <span className={`whitespace-nowrap font-semibold ${tone}`}>{saved}</span>,
     aside: m.progressLabel,
     actions: (
       <>

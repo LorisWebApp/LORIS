@@ -21,7 +21,7 @@ export function SectionHeader({ title, description, eyebrow, actions, size = 'lg
     <div className={cx('flex items-end justify-between gap-4', divider && 'border-b border-line pb-3', className)}>
       <div className="min-w-0">
         {eyebrow && <p className="mb-1 text-[13px] font-semibold uppercase tracking-[0.14em] text-muted">{eyebrow}</p>}
-        <Tag className={size === 'lg' ? 'text-[30px] font-medium leading-tight text-deep' : 'text-[14px] font-bold uppercase tracking-[0.14em] text-deep'}>{title}</Tag>
+        <Tag className={size === 'lg' ? 'text-[28px] font-medium leading-tight text-deep' : 'text-[14px] font-bold uppercase tracking-[0.14em] text-deep'}>{title}</Tag>
         {description && <p className="mt-1 text-[17px] leading-6 text-muted">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

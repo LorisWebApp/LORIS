@@ -77,7 +77,7 @@ export default function ChatInterface() {
           <div className="flex items-center justify-between border-b border-line px-5 py-4">
             <div className="flex items-center gap-3">
               <span className="grid size-8 place-items-center rounded-[4px] bg-ink text-white"><Bot size={15} /></span>
-              <div><p className="m-0 text-[19px] font-semibold leading-tight text-deep">Conversation with Library Assistant</p><p className="m-0 text-[13px] text-muted">Current Session</p></div>
+              <div><p className="m-0 text-[17px] font-semibold leading-tight text-deep">Conversation with Library Assistant</p><p className="m-0 text-[13px] text-muted">Current Session</p></div>
             </div>
             <Button variant="secondary" size="sm" shape="pill" onClick={chat.clear} leftIcon={<RotateCcw size={13} />}>Clear</Button>
           </div>

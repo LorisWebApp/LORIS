@@ -11,7 +11,7 @@ export interface UserAvatarProps {
   className?: string;
 }
 
-const sizes = { xs: 'size-6 text-[11px]', sm: 'size-8 text-[13px]', md: 'size-10 text-[15px]', lg: 'size-14 text-[20px]' } as const;
+const sizes = { xs: 'size-6 text-[11px]', sm: 'size-8 text-[13px]', md: 'size-10 text-[15px]', lg: 'size-14 text-[18px]' } as const;
 
 export function deriveInitials(name?: string): string {
   if (!name) return '';

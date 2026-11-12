@@ -44,7 +44,7 @@ function VaultVolume({ lib, onPurge }: { lib: Lib; onPurge: () => void }) {
   const [num, unit] = formatBytes(usedBytes).split(' ');
   return (
     <div className="w-[400px] shrink-0 border border-white/15 p-5 text-white">
-      <div className="flex justify-end"><StatusBadge label={`${readyCount} Items Ready`} variant="accent" size="sm" /></div>
+      <div className="flex justify-end"><StatusBadge label={`${readyCount} ${readyCount === 1 ? 'Item' : 'Items'} Ready`} variant="accent" size="sm" /></div>
       <StatDisplay
         tone="inverse" label="Vault Volume" value={num}
         unit={`${unit}${quotaBytes ? ` / ${formatBytes(quotaBytes)}` : ' on device'}`}
@@ -185,7 +185,7 @@ export function OfflineDesktop({ lib, f, onOpen, onRemove, onPurge }: Props) {
             <div className="flex items-center justify-between gap-6">
               <div className="max-w-md">
                 <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-badge">Continue Discovery</p>
-                <h2 className="mt-2 text-[34px] font-medium leading-tight">Expand your travelling repository</h2>
+                <h2 className="mt-2 text-[30px] font-medium leading-tight">Expand your travelling repository</h2>
                 <p className="mt-2 text-[16px] leading-6 text-white/65">Traveling to field research or remote sites? Queue multiple books, papers, or audio archives for bulk offline syncing with one click.</p>
               </div>
               <Button to={ROUTES.browse} tone="inverse" shape="pill">Explore Full Catalogue</Button>

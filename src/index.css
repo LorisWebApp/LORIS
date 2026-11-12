@@ -1,8 +1,8 @@
-@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/newsreader/opsz.css";
 @import "tailwindcss";
 
 @theme {
-    /* Newsreader is the single LORIS typeface; hierarchy comes from size, weight and case. */
+  /* Newsreader is the single LORIS typeface; hierarchy comes from size, weight and case. */
   --font-sans: "Newsreader Variable", Georgia, "Times New Roman", serif;
   --font-serif: "Newsreader Variable", Georgia, "Times New Roman", serif;
 
@@ -28,8 +28,7 @@ body {
   color: var(--color-deep);
   background: var(--color-page);
   -webkit-font-smoothing: antialiased;
-   /* Keeps text size consistent with the original design metrics. */
-  font-size-adjust: 0.5;
+  font-optical-sizing: auto;
   overflow-x: hidden;
 }
 button { font-family: inherit; cursor: pointer; }

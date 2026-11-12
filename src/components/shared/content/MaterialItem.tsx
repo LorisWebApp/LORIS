@@ -41,14 +41,14 @@ export function MaterialItem({ title, subtitle, cover, coverOverlay, tag, detail
     return (
       <article className={cx('p-4', framed ? 'bg-white' : 'border-b border-line', className)}>
         <div className="flex gap-3">
-          <div className="relative h-[110px] w-20 shrink-0 overflow-hidden rounded-[4px]">{cover}{coverOverlay}</div>
+          <div className="relative h-[110px] w-20 shrink-0 overflow-hidden rounded-[4px]">{cover}{coverOverlay}{tagEl && <span className="absolute left-1 top-1">{tagEl}</span>}</div>
           <div className="min-w-0 flex-1">
             {(status || statusAside) && <div className="flex items-center justify-between gap-2 text-[14px]">{status}<span className="text-muted">{statusAside}</span></div>}
-            <h3 className="mt-1 text-[20px] font-semibold leading-tight text-deep">{title}</h3>
+            <h3 className="mt-1 text-[18px] font-semibold leading-tight text-deep">{title}</h3>
             {subtitle && <p className="mt-0.5 text-[16px] text-muted">{subtitle}</p>}
-            <div className="mt-2.5 flex items-end justify-between gap-2 text-[15px]">
-              <span className="flex items-center gap-2 text-muted">{tagEl}{detailText}</span>
-              {aside && <span className="text-right font-semibold text-brand">{aside}</span>}
+            <div className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[15px]">
+              <span className="whitespace-nowrap text-muted">{detailText}</span>
+              {aside && <span className="whitespace-nowrap text-right font-semibold text-brand">{aside}</span>}
             </div>
             {metadata && <MaterialMetadata {...metadata} className="mt-1" />}
           </div>
@@ -64,7 +64,7 @@ export function MaterialItem({ title, subtitle, cover, coverOverlay, tag, detail
         <div className="relative h-24 w-[72px] shrink-0 overflow-hidden rounded-[4px]">{cover}{coverOverlay}</div>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-[15px] text-muted">{tagEl}{detailText}</p>
-          <h3 className="mt-1 truncate text-[21px] font-semibold leading-tight text-deep">{title}</h3>
+          <h3 className="mt-1 truncate text-[19px] font-semibold leading-tight text-deep">{title}</h3>
           {subtitle && <p className="text-[16px] text-muted">{subtitle}</p>}
           {metadata && <MaterialMetadata {...metadata} className="mt-0.5" />}
           {(status || statusAside) && <p className="mt-1 text-[15px]">{status}{statusAside && <> <span aria-hidden>•</span> {statusAside}</>}</p>}
@@ -80,7 +80,7 @@ export function MaterialItem({ title, subtitle, cover, coverOverlay, tag, detail
       <div className="relative h-[232px] shrink-0 overflow-hidden">{cover}{coverOverlay}</div>
       <div className="flex flex-1 flex-col p-4">
         <p className="flex items-center gap-2 text-[15px] text-muted">{tagEl}{detailText}</p>
-        <h3 className="mt-2 text-[21px] font-semibold leading-snug text-deep">{title}</h3>
+        <h3 className="mt-2 text-[19px] font-semibold leading-snug text-deep">{title}</h3>
         {subtitle && <p className="mt-0.5 text-[16px] text-muted">{subtitle}</p>}
         {metadata && <MaterialMetadata {...metadata} className="mt-1" />}
         {(status || statusAside) && <p className="mt-3 text-[15px]">{status}{statusAside && <> <span aria-hidden>•</span> {statusAside}</>}</p>}

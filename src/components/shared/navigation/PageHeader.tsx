@@ -27,7 +27,7 @@ export interface PageHeaderProps {
   contentClassName?: string;
 }
 
-const titleSize = { lg: 'text-[56px] leading-none', md: 'text-[44px] leading-none', sm: 'text-[30px] leading-tight' } as const;
+const titleSize = { lg: 'text-[50px] leading-none', md: 'text-[38px] leading-none', sm: 'text-[28px] leading-tight' } as const;
 
 export function PageHeader({ title, description, breadcrumbs, eyebrow, icon, meta, actions, aside, tone = 'light', size = 'lg', accent, className, contentClassName }: PageHeaderProps) {
   const dark = tone === 'dark';
@@ -42,7 +42,7 @@ export function PageHeader({ title, description, breadcrumbs, eyebrow, icon, met
             {icon && <span className={dark ? 'text-white/80' : 'text-ink'} aria-hidden>{icon}</span>}
             <h1 className={cx('m-0 font-medium tracking-tight', titleSize[size])}>{title}</h1>
           </div>
-          {description && <p className={cx('mt-4 text-[19px] leading-7', dark ? 'text-white/75' : 'text-ink/75', size === 'sm' && 'mt-1.5 text-[16px] leading-6')}>{description}</p>}
+          {description && <p className={cx('mt-4 text-[17px] leading-7', dark ? 'text-white/75' : 'text-ink/75', size === 'sm' && 'mt-1.5 text-[16px] leading-6')}>{description}</p>}
           {meta && <div className={cx('mt-4 text-[15px]', dark ? 'text-white/65' : 'text-muted')}>{meta}</div>}
         </div>
         {(aside || actions) && <div className="flex shrink-0 items-center gap-3">{aside}{actions}</div>}
