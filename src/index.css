@@ -1,0 +1,83 @@
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* Typography */
+  --font-sans: "Crimson Pro", serif;
+  --font-serif: "Crimson Pro", serif;
+
+  /* Group B: Velvet Teal */
+  --color-vt-50: #f0fafb;
+  --color-vt-100: #dcf0f1;
+  --color-vt-200: #a8d9dc;
+  --color-vt-500: #2a9aa1;
+  --color-vt-600: #187e85;
+  --color-vt-700: #12686e;
+  --color-vt-800: #0e5257;
+  --color-vt-900: #0a3d42;
+  --color-vt-950: #062b2e;
+
+  /* Group B: Neutrals */
+  --color-ink-100: #f2f4f7;
+  --color-ink-300: #d0d5dd;
+  --color-ink-500: #667085;
+  --color-ink-700: #344054;
+  --color-ink-900: #0b1b1d;
+
+  /* Shared component token mappings */
+  --color-ink: #0b1b1d;
+  --color-deep: #0a3d42;
+  --color-mint: #dcf0f1;
+  --color-brand: #2a9aa1;
+  --color-badge: #a8d9dc;
+  --color-line: #d0d5dd;
+  --color-muted: #667085;
+
+  /* Semantic colours */
+  --color-success: #067647;
+
+  /* Neutral danger treatment using Group B colours */
+  --color-rose-text: #344054;
+}
+
+:root {
+  font-family: "Crimson Pro", serif;
+  color: #0b1b1d;
+  background: #f8fafc;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: "Crimson Pro", serif;
+  background: #f8fafc;
+  color: #0b1b1d;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+}
