@@ -1,9 +1,9 @@
-import { Compass, Library, MessagesSquare, Search, WifiOff } from 'lucide-react';
+import { Compass, Library, Search, WifiOff } from 'lucide-react';
 import { Button, NavigationItem, NotificationPanel, Topbar, UserMenu } from '../shared';
 import { LorisLogo } from '../common/LorisLogo';
 import { ROUTES, USER_MENU_ITEMS, useCurrentUser, useNotifications } from '../../integration/loris';
 
-/** Mobile top bar: logo, Assistant, search, notifications, account. */
+/** Mobile top bar: logo, search, notifications, account. */
 export function MobileTopBar() {
   const user = useCurrentUser();
   const notifications = useNotifications();
@@ -15,7 +15,6 @@ export function MobileTopBar() {
       brand={<LorisLogo />}
       userControls={
         <div className="flex items-center gap-3 text-ink">
-          <NavigationItem to={ROUTES.assistant} label="Assistant" icon={<MessagesSquare size={18} />} variant="bottom" className="!py-0 text-[11px]" />
           <Button to={ROUTES.browse} variant="icon" size="sm" aria-label="Search catalogue"><Search size={18} /></Button>
           <NotificationPanel notifications={notifications} />
           <UserMenu user={{ initials: user.initials }} items={USER_MENU_ITEMS} showChevron={false} />

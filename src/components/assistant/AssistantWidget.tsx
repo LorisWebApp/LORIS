@@ -1,4 +1,4 @@
-import { Bot, Minus, RotateCcw, SendHorizontal, X } from 'lucide-react';
+import { Bot, Minus, RotateCcw, SendHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button } from '../shared';
@@ -75,14 +75,14 @@ function TypingIndicator() {
  * Render once inside <AssistantProvider> (see EndUserLayout).
  */
 export function AssistantWidget() {
-  const { open, messages, loading, openAssistant, minimize, close, send, clear, setFeedback } = useAssistant();
+  const { open, messages, loading, openAssistant, minimize, send, clear, setFeedback } = useAssistant();
   const user = useCurrentUser();
   const { pathname } = useLocation();
   const bubbleRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wasOpen = useRef(false);
 
-  // Move focus into the panel on open, back to the bubble on close.
+  // Move focus into the panel on open, back to the bubble on minimize.
   useEffect(() => {
     if (open) {
       const t = setTimeout(() => inputRef.current?.focus(), 200);
@@ -100,10 +100,10 @@ export function AssistantWidget() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') minimize(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, close]);
+  }, [open, minimize]);
 
   const showTopics = messages.length <= 1;
 
@@ -143,7 +143,6 @@ export function AssistantWidget() {
           <div className="flex shrink-0 items-center">
             <Button variant="icon" size="sm" onClick={clear} aria-label="Start a new conversation" title="New conversation"><RotateCcw size={15} /></Button>
             <Button variant="icon" size="sm" onClick={minimize} aria-label="Minimize assistant" title="Minimize"><Minus size={17} /></Button>
-            <Button variant="icon" size="sm" onClick={close} aria-label="Close assistant" title="Close"><X size={17} /></Button>
           </div>
         </header>
 

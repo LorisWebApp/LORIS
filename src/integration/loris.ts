@@ -37,7 +37,6 @@ export const ROUTES = {
   browse: '/browse',
   myLibrary: '/my-library',
   offlineLibrary: '/offline-library',
-  assistant: '/assistant',
   support: '/support',
 } as const;
 

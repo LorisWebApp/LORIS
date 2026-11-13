@@ -31,10 +31,8 @@ export interface AssistantContextValue {
   messages: ChatMessage[];
   loading: boolean;
   openAssistant: () => void;
-  /** Collapses to the bubble. The conversation is kept. */
+  /** Collapses to the bubble. The conversation is kept for the session. */
   minimize: () => void;
-  /** Hides the expanded view. The conversation is kept for the session. */
-  close: () => void;
   send: (text: string, operation?: AssistantOperation) => void;
   setFeedback: (id: string, v: 'yes' | 'no') => void;
   clear: () => void;
@@ -99,7 +97,6 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     open, messages, loading, send, clear, setFeedback,
     openAssistant: () => setOpen(true),
     minimize: () => setOpen(false),
-    close: () => setOpen(false),
   }), [open, messages, loading, send, clear, setFeedback]);
 
   return <AssistantContext.Provider value={value}>{children}</AssistantContext.Provider>;

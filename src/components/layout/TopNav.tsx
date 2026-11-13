@@ -6,7 +6,6 @@ const links = [
   { to: ROUTES.browse, label: 'Browse' },
   { to: ROUTES.myLibrary, label: 'My library' },
   { to: ROUTES.offlineLibrary, label: 'Offline Library' },
-  { to: ROUTES.assistant, label: 'Assistant' },
 ];
 
 /** Desktop top navigation, composed from the shared Topbar. */
