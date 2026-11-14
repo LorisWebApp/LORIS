@@ -3,6 +3,10 @@ import type {
 } from '../types/dashboard';
 import type { InvitationCodeValidation } from '../types/invitation';
 import type { OrganisationRegistrationRequest } from '../types/organisation';
+import type {
+  InvitationCode, InvitationCodesPage, InvitationCodesQuery, NewInvitationCode, NewRenewalRequest, NewTicket, RenewalOverview, RenewalRequest,
+} from '../types/organisationAdmin';
+import type { Ticket, TicketsPage, TicketsQuery } from '../types/platform';
 import { request } from './http';
 
 /** POST /organisations/registration-requests (public) */
@@ -65,3 +69,43 @@ export const removeMember = (id: string) => request(`/organisation/members/${enc
 /** POST /organisation/invitations {emails} -> { sent } */
 export const sendInvitations = (emails: string[]) =>
   request<{ sent: number }>('/organisation/invitations', { method: 'POST', body: { emails } });
+
+/** GET /organisation/invitation-codes?status=&q=&page=&pageSize= */
+export const listInvitationCodes = (query: InvitationCodesQuery, signal?: AbortSignal) =>
+  request<InvitationCodesPage>(`/organisation/invitation-codes${qs({ ...query })}`, { signal });
+
+/** POST /organisation/invitation-codes {label?, expiresInDays, maxUses|null} -> InvitationCode */
+export const createInvitationCode = (input: NewInvitationCode) =>
+  request<InvitationCode>('/organisation/invitation-codes', { method: 'POST', body: input });
+
+/** POST /organisation/invitation-codes/:id/revoke -> InvitationCode */
+export const revokeInvitationCode = (id: string) =>
+  request<InvitationCode>(`/organisation/invitation-codes/${encodeURIComponent(id)}/revoke`, { method: 'POST' });
+
+/** GET /organisation/renewals -> { accessEndsAt, requests } */
+export const getRenewals = (signal?: AbortSignal) => request<RenewalOverview>('/organisation/renewals', { signal });
+
+/** POST /organisation/renewals {termMonths, note?} -> RenewalRequest (409 RENEWAL_PENDING if one is already open) */
+export const requestRenewal = (input: NewRenewalRequest) =>
+  request<RenewalRequest>('/organisation/renewals', { method: 'POST', body: input });
+
+/** DELETE /organisation/renewals/:id (withdraws a pending request) */
+export const withdrawRenewal = (id: string) => request(`/organisation/renewals/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+/** GET /organisation/tickets?filter=&q=&page=&pageSize= (this organisation's tickets only) */
+export const listOwnTickets = (query: TicketsQuery, signal?: AbortSignal) =>
+  request<TicketsPage>(`/organisation/tickets${qs({ ...query })}`, { signal });
+
+/** GET /organisation/tickets/:id (includes the message thread) */
+export const getOwnTicket = (id: string, signal?: AbortSignal) =>
+  request<Ticket>(`/organisation/tickets/${encodeURIComponent(id)}`, { signal });
+
+/** POST /organisation/tickets {subject, priority, message} -> Ticket */
+export const createTicket = (input: NewTicket) => request<Ticket>('/organisation/tickets', { method: 'POST', body: input });
+
+/** POST /organisation/tickets/:id/reply {message} -> Ticket */
+export const replyToOwnTicket = (id: string, message: string) =>
+  request<Ticket>(`/organisation/tickets/${encodeURIComponent(id)}/reply`, { method: 'POST', body: { message } });
+
+/** POST /organisation/tickets/:id/resolve -> Ticket (the organisation closes its own ticket) */
+export const closeOwnTicket = (id: string) => request<Ticket>(`/organisation/tickets/${encodeURIComponent(id)}/resolve`, { method: 'POST' });

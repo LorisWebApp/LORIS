@@ -24,7 +24,8 @@ export function PlatformOverview() {
   return (
     <AsyncView data={data} loading={loading} error={error} onRetry={reload} loadingLabel="Loading the overview…">
       {(o) => {
-        const pct = Math.round((o.storage.usedGb / o.storage.totalGb) * 100);
+        const hasStorage = o.storage.totalGb > 0;
+        const pct = hasStorage ? Math.round((o.storage.usedGb / o.storage.totalGb) * 100) : 0;
         return (
           <div className="space-y-6">
             <div>
@@ -49,12 +50,16 @@ export function PlatformOverview() {
               </Panel>
               <Panel className="p-6">
                 <SectionHeader title="System storage" as="h2" size="sm" />
-                <p className="mt-3 flex items-baseline justify-between">
-                  <span className="text-[34px] font-medium leading-none text-deep">{pct}%</span>
-                  <span className="text-[14px] text-muted">{formatGb(o.storage.usedGb)} of {formatGb(o.storage.totalGb)} used</span>
-                </p>
-                <ProgressIndicator className="mt-3" value={o.storage.usedGb} max={o.storage.totalGb} label="Storage used" />
-                <p className="mt-2 text-[14px] text-muted">{formatGb(o.storage.totalGb - o.storage.usedGb)} available</p>
+                {hasStorage ? (
+                  <>
+                    <p className="mt-3 flex items-baseline justify-between">
+                      <span className="text-[34px] font-medium leading-none text-deep">{pct}%</span>
+                      <span className="text-[14px] text-muted">{formatGb(o.storage.usedGb)} of {formatGb(o.storage.totalGb)} used</span>
+                    </p>
+                    <ProgressIndicator className="mt-3" value={o.storage.usedGb} max={o.storage.totalGb} label="Storage used" />
+                    <p className="mt-2 text-[14px] text-muted">{formatGb(o.storage.totalGb - o.storage.usedGb)} available</p>
+                  </>
+                ) : <p className="mt-4 text-[16px] text-muted">No storage information yet. It will appear once the backend reports it.</p>}
               </Panel>
             </div>
 
@@ -82,6 +87,7 @@ export function PlatformOverview() {
               </Panel>
               <Panel className="p-6">
                 <SectionHeader title="Across the library" />
+                {o.activity.length === 0 && <p className="mt-4 text-[16px] text-muted">Nothing has happened yet.</p>}
                 <ul className="mt-4 list-none divide-y divide-line p-0">
                   {o.activity.map((a) => (
                     <li key={a.id} className="py-3">
@@ -95,7 +101,7 @@ export function PlatformOverview() {
             </div>
 
             <Callout className="flex flex-wrap items-center justify-between gap-3">
-              <span>{o.healthMessage}</span>
+              <span>{o.healthMessage ?? 'System health information will appear here once the backend reports it.'}</span>
               <Button to="/platform/system" variant="text" size="sm">Manage library system →</Button>
             </Callout>
           </div>

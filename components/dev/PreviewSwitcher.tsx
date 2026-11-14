@@ -21,16 +21,17 @@ const TARGETS: Record<UserRole, Target[]> = {
   ],
   organisation_admin: [
     { label: 'Overview', to: '/organisation' },
-    { label: 'Upload materials', to: '/organisation/upload' },
-    { label: 'Materials', to: '/organisation/materials' },
-    { label: 'Members', to: '/organisation/members' },
+    { label: 'Manage users', to: ROUTES.organisationUsers },
+    { label: 'Invitation codes', to: ROUTES.organisationInvitations },
+    { label: 'Renewal requests', to: ROUTES.organisationRenewals },
+    { label: 'Support tickets', to: ROUTES.organisationTickets },
   ],
   member: [{ label: 'Library (placeholder)', to: '/library' }],
 };
 
 const PUBLIC: Target[] = [
   { label: 'Login', to: ROUTES.login, signOut: true },
-  { label: 'Register (invitation code)', to: `${ROUTES.register}?code=ATLA-2026`, signOut: true },
+  { label: 'Register (invitation code)', to: ROUTES.register, signOut: true },
   { label: 'Enter organisation code', to: ROUTES.organisationCode },
   { label: 'Organisation registration', to: ROUTES.organisationRegistration },
   { label: 'Forgot password', to: ROUTES.forgotPassword },

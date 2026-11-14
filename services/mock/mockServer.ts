@@ -11,8 +11,9 @@ import type {
   LibraryConfig, LibraryConfigState, OrganisationSummary, PlatformNotification, PlatformOverview, PlatformShell,
   RegistrationRequest, RequestDecision, RequestsPage, RequestStatus, Ticket, TicketFilter, TicketsPage,
 } from '../../types/platform';
+import type { InvitationCode, InvitationCodeFilter, InvitationCodesPage, RenewalRequest, RenewalTerm } from '../../types/organisationAdmin';
 import type { User, UserRole } from '../../types/user';
-import { activity, ago, categories, EXPIRED_CODE, invitationCodes, libraryConfig, materials, members, orgState, readNotificationIds, requests, tickets, users, type MockUser } from './mockData';
+import { ago, categories, invitationCodeList, invitationCodes, libraryConfig, materials, members, orgState, readNotificationIds, renewals, requests, tickets, users, type MockUser } from './mockData';
 
 type Body = Record<string, unknown>;
 interface Ctx { body: Body; params: string[]; query: URLSearchParams; user: MockUser | null }
@@ -82,13 +83,27 @@ route('POST', '/auth/login', ({ body }) => {
 route('POST', '/auth/logout', () => undefined);
 route('GET', '/auth/me', ({ user }) => ({ user: publicUser(user as MockUser) }), 'any');
 
+/** Looks a code up and checks it can still be used; throws the same errors the real API should. */
+function usableCode(raw: string) {
+  const code = raw.trim().toUpperCase();
+  const org = invitationCodes[code];
+  const row = invitationCodeList.find((c) => c.code === code);
+  if (!org || !row) throw new ApiError('That invitation code is not valid.', 404, 'CODE_INVALID');
+  refreshCodeStatuses();
+  if (row.status === 'revoked') throw new ApiError('That invitation code is not valid.', 404, 'CODE_INVALID');
+  if (row.status === 'expired' || (row.maxUses !== null && row.uses >= row.maxUses)) throw new ApiError('This code has expired.', 410, 'CODE_EXPIRED');
+  return { org, row };
+}
+
 route('POST', '/auth/register', ({ body }) => {
   const code = str(body, 'invitationCode');
-  const org = invitationCodes[code];
-  if (!org) throw new ApiError('That invitation code is not valid.', 404, 'CODE_INVALID');
+  const org = usableCode(code);
   const email = str(body, 'email').toLowerCase();
   if (users.some((u) => u.email.toLowerCase() === email)) throw new ApiError('An account with this email already exists.', 409, 'EMAIL_TAKEN', { email: 'An account with this email already exists.' });
-  users.push({ id: `u-${Date.now()}`, email, fullName: str(body, 'fullName'), role: 'member', organisationId: org.id, organisationName: org.name, emailVerified: false, password: String(body.password ?? '') });
+  const id = `u-${Date.now()}`;
+  users.push({ id, email, fullName: str(body, 'fullName'), role: 'member', organisationId: org.org.id, organisationName: org.org.name, emailVerified: false, password: String(body.password ?? '') });
+  members.unshift({ id: `mem-${id}`, fullName: str(body, 'fullName'), email, role: 'Member', online: false, joinedAt: ago(0), organisationId: org.org.id });
+  org.row.uses += 1;
   return undefined;
 });
 route('POST', '/auth/forgot-password', () => undefined);
@@ -105,16 +120,12 @@ route('POST', '/auth/resend-verification', () => undefined);
 
 // ======================= Organisations (public) =======================
 route('POST', '/organisations/validate-code', ({ body }) => {
-  const code = str(body, 'code');
-  if (code.toUpperCase() === EXPIRED_CODE) throw new ApiError('This code has expired.', 410, 'CODE_EXPIRED');
-  const org = invitationCodes[code.toUpperCase()];
-  if (!org) throw new ApiError('Invalid code.', 404, 'CODE_INVALID');
-  return { valid: true, organisation: org };
+  return { valid: true, organisation: usableCode(str(body, 'code')).org };
 });
 route('POST', '/organisations/registration-requests', ({ body }) => {
   const email = str(body, 'email').toLowerCase();
   if (requests.some((r) => r.email.toLowerCase() === email && (r.status === 'pending' || r.status === 'more_details'))) throw new ApiError('Duplicate request.', 409, 'DUPLICATE');
-  const n = Math.max(...requests.map((r) => Number(r.id.slice(4)))) + 1;
+  const n = requests.reduce((m, r) => Math.max(m, Number(r.id.slice(4))), 0) + 1;
   requests.unshift({ id: `req-${n}`, reference: `REQ-${String(n).padStart(4, '0')}`, organisationName: str(body, 'organisationName'), email: str(body, 'email'), organisationType: str(body, 'organisationType'), country: str(body, 'country'), provinceOrState: str(body, 'provinceOrState'), cityOrTown: str(body, 'cityOrTown'), postalCode: str(body, 'postalCode'), submittedAt: ago(0), status: 'pending' });
   return undefined;
 });
@@ -147,14 +158,19 @@ route('GET', '/platform/overview', (): PlatformOverview => {
   const count = (k: MaterialKind) => materials.filter((m) => m.kind === k).length;
   const open = tickets.filter((t) => t.status === 'open');
   const pending = requests.filter((r) => r.status === 'pending');
+  const recent = [
+    ...requests.map((r) => ({ id: `a-${r.id}`, title: 'Organisation request', detail: r.organisationName, at: r.submittedAt })),
+    ...tickets.map((t) => ({ id: `a-${t.id}`, title: 'New support ticket', detail: `#${t.reference} · ${t.subject}`, at: t.receivedAt })),
+  ].sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 5);
   return {
-    activeUsers: 846, usersOnlineNow: 126, activeOrganisations: countReq('accepted'), organisationsOnlineNow: 8,
+    // Presence (who is signed in right now) and storage need the real backend; they stay at zero until it is attached.
+    activeUsers: members.length, usersOnlineNow: 0, activeOrganisations: countReq('accepted'), organisationsOnlineNow: 0,
     pendingRequests: pending.length, requestsToday: pending.filter((r) => isToday(r.submittedAt)).length,
     openTickets: open.length, ticketsAwaitingReply: open.filter((t) => t.awaitingReply).length,
     materials: { total, books: count('book'), videos: count('video'), images: count('image'), audio: count('audio') },
-    storage: { usedGb: 680, totalGb: 1000 },
+    storage: { usedGb: 0, totalGb: 0 },
     newestRequests: [...pending].sort(byNewest).slice(0, 3),
-    activity, healthMessage: 'Library health is good. Backups completed today at 03:00 UTC.',
+    activity: recent, healthMessage: null,
   };
 }, 'platform_admin');
 
@@ -193,7 +209,7 @@ route('POST', '/platform/requests/:id/decision', ({ params, body }) => {
 route('GET', '/platform/organisations', (): OrganisationSummary[] =>
   requests.filter((r) => r.status === 'accepted').sort(byNewest).map((r) => ({
     id: `org-${r.id}`, name: r.organisationName, type: r.organisationType, country: r.country, city: r.cityOrTown,
-    members: 12 + ((r.organisationName.length * 7) % 180), joinedAt: r.submittedAt,
+    members: users.filter((u) => u.role === 'member' && u.organisationName === r.organisationName).length, joinedAt: r.submittedAt,
   })), 'platform_admin');
 
 function ticketFilter(t: Ticket, f: TicketFilter) {
@@ -247,12 +263,13 @@ route('POST', '/platform/library-config/discard', () => { libraryConfig.draft = 
 // ======================= Organisation admin =======================
 route('GET', '/organisation/dashboard', ({ user }) => {
   const count = (k: MaterialKind) => materials.filter((m) => m.kind === k).length;
-  const online = members.filter((m) => m.online).length;
+  const mine = members.filter((m) => m.organisationId === user?.organisationId);
+  const online = mine.filter((m) => m.online).length;
   return {
     organisationName: user?.organisationName ?? 'Your organisation',
-    inviteLink: 'loris.library/invite/your-organisation',
+    inviteLink: null,
     materials: { total: materials.length, books: count('book'), videos: count('video'), images: count('image'), audio: count('audio') },
-    members: { total: members.length, online, offline: members.length - online, activeLast30Days: orgState.activeLast30Days },
+    members: { total: mine.length, online, offline: mine.length - online, activeLast30Days: 0 /* needs real activity tracking from the backend */ },
     pendingInvitations: orgState.pendingInvitations,
     limits: { maxUploadMb: libraryConfig.published.maxUploadMb, allowedTypes: libraryConfig.published.allowedTypes },
   };
@@ -332,19 +349,21 @@ route('POST', '/organisation/categories', ({ body }) => {
   return categories;
 }, 'organisation_admin');
 
-route('GET', '/organisation/members', ({ query }): MembersPage => {
+route('GET', '/organisation/members', ({ query, user }): MembersPage => {
   const filter = (query.get('filter') ?? 'all') as MemberFilter;
   const q = (query.get('q') ?? '').toLowerCase();
   const page = Math.max(1, Number(query.get('page') ?? 1));
   const pageSize = Number(query.get('pageSize') ?? 6);
-  const base = members.filter((m) => !q || m.fullName.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
+  const base = members.filter((m) => m.organisationId === user?.organisationId && (!q || m.fullName.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)));
   const list = base.filter((m) => filter === 'all' || (filter === 'online' ? m.online : !m.online));
   return { items: list.slice((page - 1) * pageSize, page * pageSize), total: list.length, counts: { all: base.length, online: base.filter((m) => m.online).length, offline: base.filter((m) => !m.online).length } };
 }, 'organisation_admin');
-route('DELETE', '/organisation/members/:id', ({ params }) => {
-  const i = members.findIndex((m) => m.id === params[0]);
+route('DELETE', '/organisation/members/:id', ({ params, user }) => {
+  const i = members.findIndex((m) => m.id === params[0] && m.organisationId === user?.organisationId);
   if (i < 0) throw new ApiError('Member not found.', 404, 'NOT_FOUND');
-  members.splice(i, 1);
+  const [gone] = members.splice(i, 1);
+  const u = users.findIndex((x) => x.role === 'member' && x.email.toLowerCase() === gone.email.toLowerCase());
+  if (u >= 0) users.splice(u, 1);
   return undefined;
 }, 'organisation_admin');
 
@@ -353,4 +372,119 @@ route('POST', '/organisation/invitations', ({ body }) => {
   if (!emails.length) throw new ApiError('Add at least one email address.', 400, 'VALIDATION', { emails: 'Add at least one email address.' });
   orgState.pendingInvitations += emails.length;
   return { sent: emails.length };
+}, 'organisation_admin');
+
+
+// ---- Invitation codes ----
+function refreshCodeStatuses() {
+  const now = Date.now();
+  invitationCodeList.forEach((c) => { if (c.status === 'active' && +new Date(c.expiresAt) < now) c.status = 'expired'; });
+}
+const codeCounts = (list: InvitationCode[]): Record<InvitationCodeFilter, number> => ({
+  all: list.length, active: list.filter((c) => c.status === 'active').length, expired: list.filter((c) => c.status === 'expired').length, revoked: list.filter((c) => c.status === 'revoked').length,
+});
+
+route('GET', '/organisation/invitation-codes', ({ query }): InvitationCodesPage => {
+  refreshCodeStatuses();
+  const status = (query.get('status') ?? 'all') as InvitationCodeFilter;
+  const q = (query.get('q') ?? '').toLowerCase();
+  const page = Math.max(1, Number(query.get('page') ?? 1));
+  const pageSize = Number(query.get('pageSize') ?? 6);
+  const base = invitationCodeList.filter((c) => !q || c.code.toLowerCase().includes(q) || c.label.toLowerCase().includes(q));
+  const list = base.filter((c) => status === 'all' || c.status === status).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+  return { items: list.slice((page - 1) * pageSize, page * pageSize), total: list.length, counts: codeCounts(base) };
+}, 'organisation_admin');
+
+route('POST', '/organisation/invitation-codes', ({ body, user }): InvitationCode => {
+  const days = Number(body.expiresInDays);
+  if (!Number.isFinite(days) || days < 1 || days > 730) throw new ApiError('Choose when the code should expire.', 400, 'VALIDATION', { expiresInDays: 'Choose when the code should expire.' });
+  const maxUses = body.maxUses === null || body.maxUses === undefined ? null : Number(body.maxUses);
+  if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1)) throw new ApiError('Enter a whole number of uses, or leave it unlimited.', 400, 'VALIDATION', { maxUses: 'Enter a whole number of uses, or leave it unlimited.' });
+  const prefix = (user?.organisationName ?? 'LORIS').split(/\s+/)[0].toUpperCase().replace(/[^A-Z0-9]/g, '') || 'LORIS';
+  let code = '';
+  do { code = `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; } while (invitationCodeList.some((c) => c.code === code));
+  const row: InvitationCode = { id: `ic-${Date.now()}`, code, label: str(body, 'label') || 'Untitled code', createdAt: ago(0), expiresAt: new Date(Date.now() + days * 86_400_000).toISOString(), maxUses, uses: 0, status: 'active' };
+  invitationCodeList.unshift(row);
+  invitationCodes[code] = { id: user?.organisationId ?? '', name: user?.organisationName ?? '' };
+  return row;
+}, 'organisation_admin');
+
+route('POST', '/organisation/invitation-codes/:id/revoke', ({ params }): InvitationCode => {
+  const c = invitationCodeList.find((x) => x.id === params[0]);
+  if (!c) throw new ApiError('Invitation code not found.', 404, 'NOT_FOUND');
+  if (c.status !== 'active') throw new ApiError('Only active codes can be revoked.', 409, 'NOT_ACTIVE');
+  c.status = 'revoked';
+  return c;
+}, 'organisation_admin');
+
+// ---- Renewal requests ----
+route('GET', '/organisation/renewals', () => ({ accessEndsAt: renewals.accessEndsAt, requests: [...renewals.requests].sort((a, b) => +new Date(b.submittedAt) - +new Date(a.submittedAt)) }), 'organisation_admin');
+
+route('POST', '/organisation/renewals', ({ body }): RenewalRequest => {
+  const term = Number(body.termMonths) as RenewalTerm;
+  if (![6, 12, 24].includes(term)) throw new ApiError('Choose a renewal period.', 400, 'VALIDATION', { termMonths: 'Choose a renewal period.' });
+  if (renewals.requests.some((r) => r.status === 'pending')) throw new ApiError('You already have a renewal request waiting for review.', 409, 'RENEWAL_PENDING');
+  const n = renewals.requests.reduce((m, r) => Math.max(m, Number(r.id.slice(4))), 0) + 1;
+  const row: RenewalRequest = { id: `ren-${n}`, reference: `REN-${String(n).padStart(4, '0')}`, termMonths: term, note: str(body, 'note') || undefined, submittedAt: ago(0), status: 'pending' };
+  renewals.requests.unshift(row);
+  return row;
+}, 'organisation_admin');
+
+route('DELETE', '/organisation/renewals/:id', ({ params }) => {
+  const i = renewals.requests.findIndex((r) => r.id === params[0]);
+  if (i < 0) throw new ApiError('Renewal request not found.', 404, 'NOT_FOUND');
+  if (renewals.requests[i].status !== 'pending') throw new ApiError('Only pending requests can be withdrawn.', 409, 'NOT_PENDING');
+  renewals.requests.splice(i, 1);
+  return undefined;
+}, 'organisation_admin');
+
+// ---- Support tickets (organisation side; shares the list the platform inbox reads) ----
+const ownTickets = (user: MockUser | null) => tickets.filter((t) => t.organisationName === (user?.organisationName ?? ''));
+const findOwnTicket = (user: MockUser | null, id: string): Ticket => {
+  const t = ownTickets(user).find((x) => x.id === id);
+  if (!t) throw new ApiError('Ticket not found.', 404, 'NOT_FOUND');
+  return t;
+};
+
+route('GET', '/organisation/tickets', ({ query, user }): TicketsPage => {
+  const filter = (query.get('filter') ?? 'open') as TicketFilter;
+  const q = (query.get('q') ?? '').toLowerCase();
+  const page = Math.max(1, Number(query.get('page') ?? 1));
+  const pageSize = Number(query.get('pageSize') ?? 5);
+  const mine = ownTickets(user);
+  const list = mine.filter((t) => ticketFilter(t, filter) && (!q || t.subject.toLowerCase().includes(q) || t.reference.toLowerCase().includes(q))).sort(byNewest);
+  return {
+    items: list.slice((page - 1) * pageSize, page * pageSize).map((t) => ({ ...t, messages: [] })), total: list.length,
+    counts: { open: mine.filter((t) => ticketFilter(t, 'open')).length, awaiting_reply: mine.filter((t) => ticketFilter(t, 'awaiting_reply')).length, resolved: mine.filter((t) => ticketFilter(t, 'resolved')).length },
+  };
+}, 'organisation_admin');
+route('GET', '/organisation/tickets/:id', ({ params, user }) => findOwnTicket(user, params[0]), 'organisation_admin');
+route('POST', '/organisation/tickets', ({ body, user }): Ticket => {
+  const errors: Record<string, string> = {};
+  if (!str(body, 'subject')) errors.subject = 'Enter a subject.';
+  if (!str(body, 'message')) errors.message = 'Describe the problem so we can help.';
+  failFields(errors);
+  const priority = (['high', 'normal', 'low'] as const).find((p) => p === body.priority) ?? 'normal';
+  const n = tickets.reduce((m, t) => Math.max(m, Number(t.reference.slice(4))), 1000) + 1;
+  const t: Ticket = {
+    id: `t-${n}`, reference: `SUP-${n}`, subject: str(body, 'subject'), organisationName: user?.organisationName ?? '', contactEmail: user?.email ?? '', priority, assignee: 'System admin',
+    receivedAt: ago(0), status: 'open', awaitingReply: true,
+    messages: [{ id: `m-${n}-1`, author: user?.fullName ?? 'Organisation', authorType: 'organisation', body: str(body, 'message'), sentAt: ago(0) }],
+  };
+  tickets.unshift(t);
+  return t;
+}, 'organisation_admin');
+route('POST', '/organisation/tickets/:id/reply', ({ params, body, user }) => {
+  const t = findOwnTicket(user, params[0]);
+  const message = str(body, 'message');
+  if (!message) throw new ApiError('Write a message first.', 400, 'VALIDATION', { message: 'Write a message first.' });
+  if (t.status === 'resolved') throw new ApiError('This ticket is resolved.', 409, 'TICKET_RESOLVED');
+  t.messages.push({ id: `m-${Date.now()}`, author: user?.fullName ?? 'Organisation', authorType: 'organisation', body: message, sentAt: ago(0) });
+  t.awaitingReply = true;
+  return t;
+}, 'organisation_admin');
+route('POST', '/organisation/tickets/:id/resolve', ({ params, user }) => {
+  const t = findOwnTicket(user, params[0]);
+  t.status = 'resolved'; t.awaitingReply = false;
+  return t;
 }, 'organisation_admin');

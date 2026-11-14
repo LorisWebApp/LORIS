@@ -7,13 +7,14 @@ import { getErrorMessage, isEmail } from '../../utils/validation';
 import { cx } from '../shared/utils/cx';
 
 /** "Knowledge is better shared": invite by email or share the invitation link. */
-export function InvitePanel({ link, onSent }: { link: string; onSent?: () => void }) {
+/** `link` is null until the backend provides the organisation's invite link; sharing is hidden until then. */
+export function InvitePanel({ link, onSent }: { link: string | null; onSent?: () => void }) {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const url = `https://${link}`;
+  const url = link ? `https://${link}` : '';
   const message = `Join us on Loris Web Library: ${url}`;
 
   async function submit(e: FormEvent) {
@@ -54,6 +55,7 @@ export function InvitePanel({ link, onSent }: { link: string; onSent?: () => voi
       </form>
       {notice && <Alert className="mt-3" severity={notice.kind} onDismiss={() => setNotice(null)}>{notice.text}</Alert>}
 
+      {link && <>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <span className="text-[14px] text-muted">Share via</span>
         <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener')}>WhatsApp</Button>
@@ -65,6 +67,7 @@ export function InvitePanel({ link, onSent }: { link: string; onSent?: () => voi
         <p className="min-w-0 flex-1 truncate text-[15px] text-ink/80" aria-label="Invite link">{link}</p>
         <Button variant="outline" size="sm" onClick={copy} leftIcon={copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}>{copied ? 'Copied' : 'Copy link'}</Button>
       </div>
+      </>}
     </Panel>
   );
 }

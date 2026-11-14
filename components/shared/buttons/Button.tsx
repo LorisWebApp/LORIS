@@ -3,7 +3,7 @@ import { forwardRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type 
 import { Link } from 'react-router-dom';
 import { cx } from '../utils/cx';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'outline' | 'danger' | 'dangerSoft' | 'outlineDanger' | 'icon';
+export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'outline' | 'danger' | 'icon';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface BaseProps {
@@ -45,8 +45,6 @@ const variants: Record<'default' | 'inverse', Record<ButtonVariant, string>> = {
     text: 'text-ink underline-offset-4 hover:bg-mint/70 hover:underline',
     outline: 'border border-ink/30 text-deep hover:border-ink hover:bg-mint/50',
     danger: 'bg-rose-text text-white hover:bg-[#8f1b21]',
-    dangerSoft: 'bg-rose-bg text-rose-text hover:bg-[#f3d2d2]',
-    outlineDanger: 'border border-line bg-white text-rose-text hover:border-rose-text hover:bg-rose-bg',
     icon: 'text-ink/70 hover:bg-mint hover:text-deep',
   },
   inverse: {
@@ -55,8 +53,6 @@ const variants: Record<'default' | 'inverse', Record<ButtonVariant, string>> = {
     text: 'text-white/85 underline-offset-4 hover:text-white hover:underline',
     outline: 'border border-white/40 text-white hover:bg-white/10',
     danger: 'bg-rose-text text-white hover:bg-[#8f1b21]',
-    dangerSoft: 'bg-rose-bg text-rose-text hover:bg-white',
-    outlineDanger: 'border border-white/40 text-white hover:bg-rose-bg hover:text-rose-text',
     icon: 'text-white/80 hover:bg-white/10 hover:text-white',
   },
 };

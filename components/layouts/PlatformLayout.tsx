@@ -26,7 +26,7 @@ export interface PlatformShellContext {
 }
 export const usePlatformShell = () => useOutletContext<PlatformShellContext>();
 
-/** Shell for platform administrators: top bar, dark page header, section tabs, footer. */
+/** Shell for platform administrators: top bar with navigation, dark page header, footer. */
 export function PlatformLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -52,7 +52,17 @@ export function PlatformLayout() {
     <div className="flex min-h-screen flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-2">Skip to content</a>
       <Topbar
+        sticky
         brand={<BrandMark to={ROUTES.platform} label="System admin" />}
+        navigation={
+          <>
+            <NavigationItem label="Overview" to={ROUTES.platform} end className="px-3" />
+            <NavigationItem label="Requests" to="/platform/requests" badge={shell && shell.pendingRequests > 0 ? shell.pendingRequests : undefined} className="px-3" />
+            <NavigationItem label="Organisations" to="/platform/organisations" className="px-3" />
+            <NavigationItem label="Support tickets" to="/platform/tickets" className="px-3" />
+            <NavigationItem label="Library system" to="/platform/system" className="px-3" />
+          </>
+        }
         actions={<Button to={ROUTES.library} variant="outline" size="sm" rightIcon={<ExternalLink size={14} aria-hidden />}>View library</Button>}
         userControls={
           <>
@@ -66,15 +76,6 @@ export function PlatformLayout() {
         }
       />
       <PageHeader tone="dark" size="md" eyebrow="A space for curious minds" title={header.title} description={header.description} className="px-8 py-10" />
-      <div className="border-b border-line bg-white">
-        <nav aria-label="Platform sections" className="mx-auto flex max-w-[1312px] gap-8 overflow-x-auto px-8">
-          <NavigationItem label="Overview" to={ROUTES.platform} end />
-          <NavigationItem label="Requests" to="/platform/requests" badge={shell && shell.pendingRequests > 0 ? shell.pendingRequests : undefined} />
-          <NavigationItem label="Organisations" to="/platform/organisations" />
-          <NavigationItem label="Support tickets" to="/platform/tickets" />
-          <NavigationItem label="Library system" to="/platform/system" />
-        </nav>
-      </div>
       <main id="main" className="mx-auto w-full max-w-[1312px] flex-1 px-8 py-8">
         <Outlet context={ctx} />
       </main>

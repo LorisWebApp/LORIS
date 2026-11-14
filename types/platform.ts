@@ -106,7 +106,8 @@ export interface PlatformOverview {
   storage: { usedGb: number; totalGb: number };
   newestRequests: RegistrationRequest[];
   activity: ActivityItem[];
-  healthMessage: string;
+  /** null until the backend reports health information. */
+  healthMessage: string | null;
 }
 
 export interface PlatformNotification {

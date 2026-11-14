@@ -141,6 +141,7 @@ function Editor({ state, onState }: { state: LibraryConfigState; onState: (s: Li
           </Panel>
           <Panel className="p-6">
             <SectionHeader title="Recent changes" />
+            {state.recentChanges.length === 0 && <p className="mt-3 text-[16px] text-muted">No changes have been published yet.</p>}
             <ul className="mt-3 list-none divide-y divide-line p-0">
               {state.recentChanges.slice(0, 4).map((c) => (
                 <li key={c.id} className="py-3"><p className="text-[16px] font-medium text-deep">{c.title}</p><p className="text-[13px] text-muted">Published {formatWhen(c.publishedAt)} · {c.by}</p></li>

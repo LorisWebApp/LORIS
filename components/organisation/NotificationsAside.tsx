@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { SectionHeader, TabNavigation } from '../shared';
+import { ArrowRight } from 'lucide-react';
+import { Button, SectionHeader, TabNavigation } from '../shared';
 import { Panel } from '../common/Panel';
 import type { PlatformNotification } from '../../types/platform';
 import { formatWhen } from '../../utils/format';
@@ -49,7 +49,7 @@ export function NotificationsAside({ notifications, unread, currentLink, onMarkA
                 <p className="text-[14px] text-muted">{n.detail}</p>
                 <p className="text-[13px] text-muted">{formatWhen(n.at)}</p>
                 {current ? <p className="mt-1 text-[14px] font-semibold text-brand-text">Reviewing now</p> : (
-                  <Link to={n.link} className="mt-1 inline-block text-[14px] font-semibold text-ink underline-offset-4 hover:underline">{n.kind === 'ticket' ? 'View ticket →' : 'Review request →'}</Link>
+                  <Button to={n.link} variant="text" size="sm" className="mt-1 -ml-3" rightIcon={<ArrowRight size={14} aria-hidden />}>{n.kind === 'ticket' ? 'View ticket' : 'Review request'}</Button>
                 )}
               </li>
             );
@@ -59,7 +59,7 @@ export function NotificationsAside({ notifications, unread, currentLink, onMarkA
 
       <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-[14px]">
         <span className="font-semibold text-ink">View all notifications →</span>
-        <button type="button" onClick={onMarkAllRead} disabled={unread === 0} className="text-muted underline-offset-4 hover:underline disabled:no-underline disabled:opacity-50">Mark all as read</button>
+        <Button variant="text" size="sm" onClick={onMarkAllRead} disabled={unread === 0}>Mark all as read</Button>
       </div>
     </Panel>
   );

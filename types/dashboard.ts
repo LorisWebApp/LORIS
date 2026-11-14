@@ -74,7 +74,8 @@ export interface MembersPage { items: Member[]; total: number; counts: Record<Me
 
 export interface OrganisationDashboard {
   organisationName: string;
-  inviteLink: string;
+  /** null until the backend provides the organisation's invite link. */
+  inviteLink: string | null;
   materials: { total: number; books: number; videos: number; images: number; audio: number };
   members: { total: number; online: number; offline: number; activeLast30Days: number };
   pendingInvitations: number;

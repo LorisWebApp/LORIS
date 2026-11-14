@@ -1,9 +1,10 @@
 import { Paperclip } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Alert, Button, EmptyState, SearchBar, SectionHeader, StatusBadge, TabNavigation } from '../../components/shared';
+import { Alert, Button, DetailRow, EmptyState, Pagination, SearchBar, SectionHeader, StatusBadge, TabNavigation } from '../../components/shared';
 import { AsyncView } from '../../components/common/AsyncView';
 import { Panel } from '../../components/common/Panel';
+import { Textarea } from '../../components/common/Textarea';
 import { cx } from '../../components/shared/utils/cx';
 import { useAsync } from '../../hooks/useAsync';
 import { getTicket, listTickets, replyToTicket, resolveTicket } from '../../services/platform.service';
@@ -50,10 +51,10 @@ function TicketDetail({ ticketId, onChanged }: { ticketId: string; onChanged: ()
             <h2 className="mt-2 text-[30px] font-medium leading-tight text-deep">{t.subject}</h2>
             <p className="text-[15px] text-muted">{t.organisationName} · {t.contactEmail}</p>
 
-            <dl className="mt-5 grid grid-cols-3 gap-4 border-y border-line py-4">
-              <div><dt className="text-[13px] text-muted">Priority</dt><dd className={cx('text-[16px] font-medium', t.priority === 'high' ? 'text-rose-text' : 'text-deep')}>{PRIORITY_LABEL[t.priority]}</dd></div>
-              <div><dt className="text-[13px] text-muted">Assigned to</dt><dd className="text-[16px] font-medium text-deep">{t.assignee}</dd></div>
-              <div><dt className="text-[13px] text-muted">Received</dt><dd className="text-[16px] font-medium text-deep">{formatWhen(t.receivedAt)}</dd></div>
+            <dl className="mt-5 grid gap-x-6 border-y border-line py-2 sm:grid-cols-3">
+              <DetailRow layout="stacked" label="Priority" value={<span className={cx(t.priority === 'high' && 'text-rose-text')}>{PRIORITY_LABEL[t.priority]}</span>} />
+              <DetailRow layout="stacked" label="Assigned to" value={t.assignee} />
+              <DetailRow layout="stacked" label="Received" value={formatWhen(t.receivedAt)} />
             </dl>
 
             <ol className="mt-5 list-none space-y-5 p-0">
@@ -70,14 +71,10 @@ function TicketDetail({ ticketId, onChanged }: { ticketId: string; onChanged: ()
 
             {t.status === 'open' ? (
               <div className="mt-6">
-                <label htmlFor="ticket-reply" className="mb-1 block text-[14px] font-medium text-ink">Your reply</label>
-                <textarea
-                  id="ticket-reply" rows={4} placeholder="Write a helpful response…" value={reply} disabled={busy !== null}
-                  onChange={(e) => { setReply(e.target.value); setReplyError(null); }}
-                  aria-invalid={replyError ? true : undefined} aria-describedby={replyError ? 'ticket-reply-error' : undefined}
-                  className="w-full rounded-lg border border-line bg-mint-soft p-3 text-[16px] text-deep outline-none placeholder:text-muted focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                <Textarea
+                  label="Your reply" rows={4} placeholder="Write a helpful response…" value={reply} disabled={busy !== null}
+                  onChange={(e) => { setReply(e.target.value); setReplyError(null); }} error={replyError ?? undefined}
                 />
-                {replyError && <p id="ticket-reply-error" className="mt-1 text-[14px] text-rose-text">{replyError}</p>}
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <Button onClick={send} loading={busy === 'reply'} disabled={busy === 'resolve'}>Send reply</Button>
                   <Button variant="secondary" onClick={resolve} loading={busy === 'resolve'} disabled={busy === 'reply'}>Mark resolved</Button>
@@ -104,7 +101,6 @@ export function SupportTickets() {
   const selectedParam = params.get('ticket');
   const selectedId = selectedParam ?? data?.items[0]?.id ?? null;
   const select = (id: string) => setParams({ ticket: id }, { replace: true });
-  const pageCount = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
   return (
     <div className="space-y-6">
@@ -145,13 +141,12 @@ export function SupportTickets() {
                     ))}
                   </ul>
                 )}
-                <div className="flex items-center justify-between border-t border-line px-5 py-3 text-[14px] text-muted">
-                  <span>Showing {d.items.length} of {d.total}</span>
-                  <span className="flex gap-3">
-                    <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="font-semibold text-ink disabled:opacity-40">← Previous</button>
-                    <button type="button" disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)} className="font-semibold text-ink disabled:opacity-40">Next →</button>
-                  </span>
-                </div>
+                {d.total > PAGE_SIZE && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-5 py-3 text-[14px] text-muted">
+                    <span>Showing {d.items.length} of {d.total}</span>
+                    <Pagination page={page} totalItems={d.total} pageSize={PAGE_SIZE} onPageChange={setPage} />
+                  </div>
+                )}
               </>
             )}
           </AsyncView>

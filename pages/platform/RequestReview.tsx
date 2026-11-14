@@ -1,8 +1,10 @@
+import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Alert, Button, ConfirmationDialog, DetailRow, Modal } from '../../components/shared';
 import { AsyncView } from '../../components/common/AsyncView';
 import { Callout, Panel } from '../../components/common/Panel';
+import { Textarea } from '../../components/common/Textarea';
 import { NotificationsAside } from '../../components/organisation/NotificationsAside';
 import { RequestStatusBadge } from '../../components/organisation/RequestStatusBadge';
 import type { PlatformShellContext } from '../../components/layouts/PlatformLayout';
@@ -54,7 +56,7 @@ export function RequestReview() {
 
   return (
     <div className="space-y-4">
-      <Link to="/platform/requests" className="inline-block text-[15px] font-medium text-ink underline-offset-4 hover:underline">← All registration requests</Link>
+      <Button to="/platform/requests" variant="text" size="sm" leftIcon={<ArrowLeft size={14} aria-hidden />}>All registration requests</Button>
 
       <div className="grid items-start gap-6 lg:grid-cols-[1.9fr_1fr]">
         <AsyncView data={request} loading={loading} error={error} onRetry={reload} loadingLabel="Loading request…">
@@ -92,7 +94,7 @@ export function RequestReview() {
                       <p className="mb-3 text-[14px] text-muted">Choose how to proceed</p>
                       <div className="flex flex-wrap gap-3">
                         <Button onClick={() => setDialog('accept')}>Accept request</Button>
-                        <Button variant="dangerSoft" onClick={() => setDialog('reject')}>Reject request</Button>
+                        <Button variant="danger" onClick={() => setDialog('reject')}>Reject request</Button>
                         <Button variant="secondary" onClick={() => setDialog('details')}>Ask for details</Button>
                       </div>
                     </div>
@@ -112,13 +114,10 @@ export function RequestReview() {
                   open={dialog === 'details'} onClose={closeDetails} dismissible={!busy} title="Ask for details" description={`Your message is emailed to ${r.email}. The request stays open.`}
                   actions={<><Button variant="text" onClick={closeDetails} disabled={busy}>Cancel</Button><Button onClick={() => submit('more_details')} loading={busy}>Send message</Button></>}
                 >
-                  <label htmlFor="details-message" className="mb-1 block text-[14px] font-medium text-ink">What do you need to know?</label>
-                  <textarea
-                    id="details-message" rows={4} value={message} onChange={(e) => { setMessage(e.target.value); setMessageError(null); }}
-                    aria-invalid={messageError ? true : undefined} aria-describedby={messageError ? 'details-error' : undefined}
-                    className="w-full rounded-lg border border-line bg-mint-soft p-3 text-[16px] text-deep outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                  <Textarea
+                    label="What do you need to know?" rows={4} value={message} onChange={(e) => { setMessage(e.target.value); setMessageError(null); }}
+                    error={messageError ?? undefined}
                   />
-                  {messageError && <p id="details-error" className="mt-1 text-[14px] text-rose-text">{messageError}</p>}
                 </Modal>
               </div>
             );
