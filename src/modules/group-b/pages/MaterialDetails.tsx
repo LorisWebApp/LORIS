@@ -1,17 +1,20 @@
 import { useState, useEffect } from "react";
-import { useParams,} from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "../supabase";
+import { useAuth } from "../../group-a/contexts/AuthContext";
 import { BookOpen, X, PlayCircle, Headphones } from "lucide-react";
 import { PageHeader, Button, DetailRow, StatusBadge } from "../shared";
 
 export default function MaterialDetails() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [material, setMaterial] = useState<any>(null);
   const [isReading, setIsReading] = useState(false);
 
   useEffect(() => {
-    supabase.from("materials").select("*").eq("id", id).single().then(({ data }) => setMaterial(data));
-  }, [id]);
+    // Guests read the public preview view (description only, no file link).
+    supabase.from(user ? "materials" : "public_materials").select("*").eq("id", id).single().then(({ data }) => setMaterial(data));
+  }, [id, user]);
 
   if (!material) return <div className="p-10 text-center text-muted font-serif">Loading...</div>;
 
@@ -47,7 +50,7 @@ export default function MaterialDetails() {
 
         {/* Details Info */}
         <div>
-          <StatusBadge label={material.category_id || "General"} variant="accent" />
+          <StatusBadge label={material.category_name || "General"} variant="accent" />
           <h1 className="text-[38px] font-medium text-deep mt-4 leading-tight">{material.title}</h1>
           <p className="text-[17px] text-muted mt-2">By {material.author || "Unknown Author"}</p>
 
@@ -57,7 +60,18 @@ export default function MaterialDetails() {
           </div>
 
           {/* ACTION BUTTONS */}
-          <div className="mt-8 flex flex-wrap gap-4">
+          {!user && (
+            <div className="mt-8 rounded-xl border border-line bg-mint-soft p-6">
+              <p className="font-semibold text-deep">Sign in to read this resource</p>
+              <p className="mt-1 text-sm text-muted">Anyone can browse the catalogue. An account is needed to read, listen or watch, and to save materials to your library.</p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link to="/login" className="rounded-lg bg-ink px-5 py-2.5 text-sm font-semibold text-white no-underline hover:bg-deep">Login</Link>
+                <Link to="/register" className="rounded-lg border border-ink/25 px-5 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-mint">Get Started</Link>
+              </div>
+            </div>
+          )}
+
+          <div className={`mt-8 flex flex-wrap gap-4 ${user ? "" : "hidden"}`}>
             {isPDF && (
               <Button onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16}/>}>Read Document</Button>
             )}
@@ -82,7 +96,7 @@ export default function MaterialDetails() {
       </main>
 
       {/* ── MEDIA VIEWER MODAL ── */}
-      {isReading && (
+      {user && isReading && (
         <div className="fixed inset-0 bg-deep/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           
           {/* The modal is narrower for Audio/Video, and wider for PDFs */}

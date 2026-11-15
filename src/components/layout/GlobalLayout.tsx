@@ -13,7 +13,12 @@ export function GlobalLayout() {
   const location = useLocation();
 
   if (loading) return <div className="min-h-screen grid place-items-center bg-page text-deep">Loading LORIS…</div>;
-  if (!user) return <Navigate to="/personal/login" replace state={{ from: location.pathname }} />;
+  if (!user) {
+    // The catalogue and material descriptions are public; everything else needs an account.
+    const isPublicCatalogue = location.pathname === '/catalogue' || location.pathname.startsWith('/material/');
+    if (isPublicCatalogue) return <GuestLayout />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
 
   const items: NavItem[] = (() => {
     if (isPlatformManager) return [
@@ -60,6 +65,26 @@ export function GlobalLayout() {
     </div>
     {!isPlatformManager && !isOrgAdmin && <AssistantWidget />}
   </AssistantProvider>;
+}
+
+/** Minimal public chrome for visitors browsing the catalogue without an account. */
+function GuestLayout() {
+  return <div className="min-h-screen bg-page text-deep">
+    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-5 py-4 lg:px-8">
+        <Link to="/" className="flex shrink-0 items-center gap-3 no-underline">
+          <span className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-white"><BookOpen size={23}/></span>
+          <span className="text-2xl font-semibold tracking-tight text-deep">LORIS</span>
+        </Link>
+        <nav aria-label="Public navigation" className="ml-auto flex items-center gap-2">
+          <Link to="/" className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-brand-text no-underline hover:bg-mint sm:inline-flex">Home</Link>
+          <Link to="/login" className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-brand-text no-underline hover:bg-mint">Login</Link>
+          <Link to="/register" className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-deep">Get Started</Link>
+        </nav>
+      </div>
+    </header>
+    <main className="min-h-[calc(100vh-73px)]"><Outlet /></main>
+  </div>;
 }
 
 export function RequireRole({ role, children }: { role: 'platform_manager' | 'admin' | 'end_user'; children: ReactNode }) {

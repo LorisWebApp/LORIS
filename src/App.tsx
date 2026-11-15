@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from './modules/group-a/pages/LandingPage';
+import AccountTypeSelect from './modules/group-a/pages/AccountTypeSelect';
 import Login from './modules/group-a/pages/auth/Login';
 import Register from './modules/group-a/pages/auth/Register';
 import ForgotPassword from './modules/group-a/pages/auth/ForgotPassword';
@@ -33,7 +34,8 @@ export default function App() {
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/organisation-registration" element={<OrganisationRegistration />} />
-    <Route path="/login" element={<Navigate to="/personal/login" replace />} />
+    <Route path="/login" element={<PublicOnly><AccountTypeSelect mode="login" /></PublicOnly>} />
+    <Route path="/register" element={<PublicOnly><AccountTypeSelect mode="register" /></PublicOnly>} />
 
     <Route element={<GlobalLayout />}>
       <Route path="/dashboard" element={<RequireRole role="end_user"><Dashboard /></RequireRole>} />
