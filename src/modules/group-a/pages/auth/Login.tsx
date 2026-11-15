@@ -8,7 +8,8 @@ import Input from '../../components/common/Input'
 import { Button } from '../../components/shared/buttons/Button'
 import { Alert } from '../../components/shared/feedback/Alert'
 
-import { loginUser } from '../../services/auth.service'
+import { loginUser, logoutUser } from '../../services/auth.service'
+import { supabase } from '../../services/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { getHomePath } from '../../contexts/roles'
 
@@ -40,6 +41,23 @@ function Login() {
         throw new Error(
           'You are signed in, but your LORIS profile could not be loaded. Please contact support.'
         )
+      }
+
+      // An organisation applicant is not an end user: until the Platform Manager approves the
+      // request they get no access at all, so sign them straight back out with an explanation.
+      if (!roles.memberships.some((m) => m.status === 'active' && m.role === 'admin') && roles.profile.platform_role !== 'platform_manager') {
+        const { data: pending } = await supabase
+          .from('organisation_requests')
+          .select('id')
+          .eq('submitted_by', roles.profile.auth_user_id)
+          .eq('status', 'pending')
+          .limit(1)
+        if (pending && pending.length > 0) {
+          await logoutUser()
+          throw new Error(
+            "Your organisation registration is still awaiting review. We'll email you as soon as it is approved, and you can log in then."
+          )
+        }
       }
 
       setSuccessMessage('Login successful!')

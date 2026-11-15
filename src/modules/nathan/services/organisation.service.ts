@@ -10,23 +10,42 @@ import type { Ticket, TicketsPage, TicketsQuery } from '../types/platform';
 import { request } from './http';
 import { supabase } from '../../../services/supabase';
 
-/** POST /organisations/registration-requests (public) */
+/**
+ * Organisation registration: creates the account AND files the request in one step.
+ * The organisation details travel as sign-up metadata; a database trigger turns them into a
+ * pending organisation_requests row (see 20261117_organisation_signup_requests.sql). This works
+ * whether or not email confirmation is on, because it needs no session. The account gets no
+ * access until a Platform Manager approves the request.
+ */
 export async function submitRegistrationRequest(payload: OrganisationRegistrationRequest): Promise<void> {
-  const { data: auth, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
-  if (!auth.user) throw new Error('Sign in with your LORIS account before submitting an organisation registration request.');
-  const { error } = await supabase.from('organisation_requests').insert({
-    submitted_by: auth.user.id,
-    organisation_name: payload.organisationName.trim(),
-    email: payload.email.trim().toLowerCase(),
-    type: payload.organisationType,
-    country: payload.country.trim(),
-    province_state: payload.provinceOrState.trim(),
-    city_town: payload.cityOrTown.trim(),
-    postal_code: payload.postalCode ? Number(payload.postalCode) : null,
-    status: 'pending',
+  const email = payload.email.trim().toLowerCase();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: payload.password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/organisation/login`,
+      data: {
+        full_name: payload.fullName.trim(),
+        account_type: 'organisation',
+        organisation_request: {
+          organisation_name: payload.organisationName.trim(),
+          type: payload.organisationType,
+          country: payload.country.trim(),
+          province_state: payload.provinceOrState.trim(),
+          city_town: payload.cityOrTown.trim(),
+          postal_code: payload.postalCode.trim(),
+        },
+      },
+    },
   });
   if (error) throw error;
+  // Supabase returns an obfuscated user with no identities when the email is already registered.
+  if (data.user && data.user.identities && data.user.identities.length === 0) {
+    throw new Error('An account with this email already exists. Log in, or use a different email address.');
+  }
+  // With email confirmation off, sign-up opens a session. Close it: nobody is logged in
+  // (least of all as an end user) until the request has been reviewed.
+  if (data.session) await supabase.auth.signOut();
 }
 
 /** POST /organisations/validate-code (public) -> { valid, organisation? } */

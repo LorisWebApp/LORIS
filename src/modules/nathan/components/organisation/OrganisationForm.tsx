@@ -3,7 +3,7 @@ import { Button } from '../shared';
 import { Input } from '../common/Input';
 import { Select } from '../common/Select';
 import { ORGANISATION_TYPES, type OrganisationRegistrationRequest } from '../../types/organisation';
-import { isEmail, type FieldErrors } from '../../utils/validation';
+import { isEmail, validateConfirm, validatePassword, type FieldErrors } from '../../utils/validation';
 
 interface OrganisationFormProps {
   submitting: boolean;
@@ -13,11 +13,12 @@ interface OrganisationFormProps {
 }
 
 const empty: OrganisationRegistrationRequest = {
-  organisationName: '', email: '', organisationType: '', country: '', provinceOrState: '', cityOrTown: '', postalCode: '',
+  fullName: '', password: '', organisationName: '', email: '', organisationType: '', country: '', provinceOrState: '', cityOrTown: '', postalCode: '',
 };
 
 export function OrganisationForm({ submitting, serverErrors, onSubmit }: OrganisationFormProps) {
   const [values, setValues] = useState(empty);
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const shown = { ...serverErrors, ...errors };
 
@@ -28,6 +29,11 @@ export function OrganisationForm({ submitting, serverErrors, onSubmit }: Organis
 
   function validate(): FieldErrors {
     const e: FieldErrors = {};
+    if (!values.fullName.trim()) e.fullName = 'Enter your full name.';
+    const pw = validatePassword(values.password);
+    if (pw) e.password = pw;
+    const cf = validateConfirm(values.password, confirmPassword);
+    if (cf) e.confirmPassword = cf;
     if (!values.organisationName.trim()) e.organisationName = 'Enter the organisation name.';
     if (!values.email.trim()) e.email = 'Enter an email address.';
     else if (!isEmail(values.email)) e.email = 'Enter a valid email address.';
@@ -36,6 +42,7 @@ export function OrganisationForm({ submitting, serverErrors, onSubmit }: Organis
     if (!values.provinceOrState.trim()) e.provinceOrState = 'Enter a province or state.';
     if (!values.cityOrTown.trim()) e.cityOrTown = 'Enter a city or town.';
     if (!values.postalCode.trim()) e.postalCode = 'Enter a postal code.';
+    else if (!/^\d{1,9}$/.test(values.postalCode.trim())) e.postalCode = 'Use digits only.';
     return e;
   }
 
@@ -44,13 +51,18 @@ export function OrganisationForm({ submitting, serverErrors, onSubmit }: Organis
     const found = validate();
     setErrors(found);
     if (Object.keys(found).length) return;
-    onSubmit({ ...values, organisationName: values.organisationName.trim(), email: values.email.trim() });
+    onSubmit({ ...values, fullName: values.fullName.trim(), organisationName: values.organisationName.trim(), email: values.email.trim() });
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <Input label="Your Full Name" autoComplete="name" value={values.fullName} onChange={(e) => set('fullName')(e.target.value)} error={shown.fullName} disabled={submitting} />
       <Input label="Organisation Name" autoComplete="organization" value={values.organisationName} onChange={(e) => set('organisationName')(e.target.value)} error={shown.organisationName} disabled={submitting} />
       <Input label="Email" type="email" autoComplete="email" value={values.email} onChange={(e) => set('email')(e.target.value)} error={shown.email} disabled={submitting} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input label="Password" type="password" autoComplete="new-password" value={values.password} onChange={(e) => set('password')(e.target.value)} error={shown.password} disabled={submitting} />
+        <Input label="Confirm Password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setErrors((er) => ({ ...er, confirmPassword: '' })); }} error={shown.confirmPassword} disabled={submitting} />
+      </div>
       <Select label="Organisation Type" options={ORGANISATION_TYPES} value={values.organisationType} onChange={(e) => set('organisationType')(e.target.value)} error={shown.organisationType} disabled={submitting} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input label="Country" autoComplete="country-name" value={values.country} onChange={(e) => set('country')(e.target.value)} error={shown.country} disabled={submitting} />

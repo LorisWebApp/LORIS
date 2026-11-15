@@ -692,6 +692,63 @@ app.post(
   },
 );
 
+// Platform Manager decision email. Called by the platform dashboard right after a request is approved/rejected.
+// Sends through Resend's HTTP API when RESEND_API_KEY is set; otherwise reports that no email was sent.
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || '';
+const APP_URL = (process.env.APP_URL || [...allowedOrigins][0] || '').replace(/\/$/, '');
+const escapeHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+app.post(
+  '/api/notifications/organisation-decision',
+  rateLimit({ limit: 20, keyPrefix: 'org-decision' }),
+  requiredServerConfig,
+  authenticate,
+  async (req, res) => {
+    try {
+      const profile = await getProfile(req.authUser.id);
+      if (!profile || profile.platform_role !== 'platform_manager') {
+        return res.status(403).json({ error: 'Only platform managers can send decision emails.' });
+      }
+      const requestId = req.body && req.body.requestId;
+      if (typeof requestId !== 'string' || !/^[0-9a-f-]{36}$/i.test(requestId)) {
+        return res.status(400).json({ error: 'A valid requestId is required.' });
+      }
+      const rows = await supabaseRest(`organisation_requests?${new URLSearchParams({ select: 'id,organisation_name,email,status', id: `eq.${requestId}`, limit: '1' })}`);
+      const request = rows && rows[0];
+      if (!request) return res.status(404).json({ error: 'Organisation request not found.' });
+      if (request.status !== 'approved' && request.status !== 'rejected') {
+        return res.status(409).json({ error: 'This request has not been decided yet.' });
+      }
+      if (!RESEND_API_KEY || !EMAIL_FROM) {
+        return res.status(202).json({ sent: false, reason: 'Email is not configured on the server (RESEND_API_KEY and EMAIL_FROM).' });
+      }
+
+      const name = escapeHtml(request.organisation_name);
+      const approved = request.status === 'approved';
+      const loginUrl = APP_URL ? `${APP_URL}/organisation/login` : '';
+      const subject = approved ? `Your LORIS organisation "${request.organisation_name}" has been approved` : `Update on your LORIS organisation registration`;
+      const html = approved
+        ? `<p>Good news: your organisation registration for <strong>${name}</strong> has been approved.</p><p>You can now log in and access LORIS as an organisation administrator.</p>${loginUrl ? `<p><a href="${loginUrl}">Log in to LORIS</a></p>` : ''}`
+        : `<p>Thank you for registering <strong>${name}</strong> with LORIS. After review, we were unable to approve this registration.</p><p>If you think this is a mistake, please contact LORIS support.</p>`;
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: EMAIL_FROM, to: [request.email], subject, html }),
+      });
+      if (!response.ok) {
+        console.error('Decision email failed with status', response.status);
+        return res.status(502).json({ sent: false, reason: 'The email provider rejected the message.' });
+      }
+      res.json({ sent: true });
+    } catch (error) {
+      console.error('Decision email error:', error.message);
+      res.status(500).json({ sent: false, reason: 'Unexpected server error.' });
+    }
+  },
+);
+
 app.use((error, _req, res, _next) => {
   if (error instanceof multer.MulterError) {
     const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;

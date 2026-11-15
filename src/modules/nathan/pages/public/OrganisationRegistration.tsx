@@ -38,7 +38,13 @@ export function OrganisationRegistration() {
         <div className="flex flex-col items-center text-center">
           <CircleCheck size={32} className="text-brand" aria-hidden />
           <p className="mt-3 text-[16px] leading-6 text-ink/80">
-            Thank you. We've received your organisation's registration request and will contact you at {submittedEmail} once it has been reviewed.
+            Thank you. We've received your organisation's registration request and it is now awaiting review.
+          </p>
+          <p className="mt-3 text-[16px] leading-6 text-ink/80">
+            Once it is approved, we'll email <strong>{submittedEmail}</strong> to let you know you can now access LORIS as an organisation administrator. You won't be able to log in until then.
+          </p>
+          <p className="mt-3 text-sm leading-6 text-ink/60">
+            If you receive an email asking you to confirm your address, please confirm it so you can log in once approved.
           </p>
           <div className="mt-6"><Button to={ROUTES.login} variant="secondary">Back to login</Button></div>
         </div>
