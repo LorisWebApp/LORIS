@@ -1,41 +1,42 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 
-import RoleProtectedRoute from './components/layouts/RoleProtectedRoute'
+import { AuthProvider } from './contexts/AuthContext'
+
+import LandingPage from './pages/LandingPage'
+
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
-import Dashboard from './pages/Dashboard'
-
-import { AuthProvider } from './contexts/AuthContext'
-import ProtectedRoute from './components/layouts/ProtectedRoute'
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route element={<RoleProtectedRoute allowedRoles={['end_user']} />}>
-            <Route path="/user-dashboard" element={<Dashboard />} />
-          </Route>
 
-          <Route element={<RoleProtectedRoute allowedRoles={['platform_manager']} />}>
-            <Route path="/manager-dashboard" element={<Dashboard />} />
-          </Route>
+          {/* Public landing page */}
+          <Route path="/" element={<LandingPage />} />
 
-          <Route element={<RoleProtectedRoute allowedRoles={['admin']} />}>
-           <Route path="/admin-dashboard" element={<Dashboard />} />
-          </Route>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* Personal account authentication */}
+          <Route path="/personal/login" element={<Login />} />
+          <Route path="/personal/register" element={<Register />} />
 
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          {/* Password recovery */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-          </Route>
+          {/* Redirect old login links */}
+          <Route
+            path="/login"
+            element={<Navigate to="/personal/login" replace />}
+          />
+
+          {/* Organisation routes - pending Nathan's implementation */}
+
+          {/* Unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+
 import AuthLayout from '../../components/layouts/AuthLayout'
 import Logo from '../../components/common/Logo'
 import Input from '../../components/common/Input'
-import Button from '../../components/common/Button'
+
+import { Button } from '../../components/shared/buttons/Button'
+import { Alert } from '../../components/shared/feedback/Alert'
+
 import { supabase } from '../../services/supabase'
 
 function ForgotPassword() {
@@ -46,12 +50,12 @@ function ForgotPassword() {
     <AuthLayout>
       <Logo />
 
-      <div className="mb-6 text-center">
-        <h2 className="text-2xl font-bold text-teal-900">
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-semibold text-deep">
           Forgot Password?
         </h2>
 
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-base text-muted">
           Enter your email address and we'll send you instructions to reset
           your password.
         </p>
@@ -68,27 +72,37 @@ function ForgotPassword() {
         />
 
         {errorMessage && (
-          <p className="mb-4 rounded-lg bg-red-100 p-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
+          <div className="mb-5">
+            <Alert severity="error">
+              {errorMessage}
+            </Alert>
+          </div>
         )}
 
         {successMessage && (
-          <p className="mb-4 rounded-lg bg-green-100 p-3 text-sm text-green-700">
-            {successMessage}
-          </p>
+          <div className="mb-5">
+            <Alert severity="success">
+              {successMessage}
+            </Alert>
+          </div>
         )}
 
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Sending...' : 'Send Reset Instructions'}
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={loading}
+        >
+          Send Reset Instructions
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <p className="mt-7 text-center text-base text-muted">
         Remember your password?{' '}
         <Link
-          to="/login"
-          className="font-semibold text-teal-800 hover:underline"
+          to="/personal/login"
+          className="font-semibold text-brand-text hover:underline"
         >
           Back to Login
         </Link>

@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+
 import AuthLayout from '../../components/layouts/AuthLayout'
 import Logo from '../../components/common/Logo'
 import Input from '../../components/common/Input'
-import Button from '../../components/common/Button'
+
+import { Button } from '../../components/shared/buttons/Button'
+import { Alert } from '../../components/shared/feedback/Alert'
+
 import { supabase } from '../../services/supabase'
 
 function Register() {
@@ -77,17 +81,17 @@ function Register() {
     <AuthLayout>
       <Logo />
 
-      <div className="mb-6 text-center">
-        <h2 className="text-2xl font-bold text-teal-900">
-          Create Your Account
+      <div className="mb-8 text-center">
+        <h2 className="text-3xl font-semibold text-deep">
+          Create Your Personal Account
         </h2>
 
-        <p className="mt-2 text-sm text-gray-600">
-          Join LORIS and access your library account.
+        <p className="mt-2 text-base text-muted">
+          Join LORIS and access your personal library account.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-1">
         <Input
           label="Full Name"
           type="text"
@@ -125,27 +129,37 @@ function Register() {
         />
 
         {errorMessage && (
-          <p className="mb-4 rounded-lg bg-red-100 p-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
+          <div className="mb-4">
+            <Alert severity="error">
+              {errorMessage}
+            </Alert>
+          </div>
         )}
 
         {successMessage && (
-          <p className="mb-4 rounded-lg bg-green-100 p-3 text-sm text-green-700">
-            {successMessage}
-          </p>
+          <div className="mb-4">
+            <Alert severity="success">
+              {successMessage}
+            </Alert>
+          </div>
         )}
 
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Creating Account...' : 'Register'}
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={loading}
+        >
+          Register
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <p className="mt-7 text-center text-base text-muted">
         Already have an account?{' '}
         <Link
-          to="/login"
-          className="font-semibold text-teal-800 hover:underline"
+          to="/personal/login"
+          className="font-semibold text-brand-text hover:underline"
         >
           Login
         </Link>
