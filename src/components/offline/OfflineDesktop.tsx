@@ -5,7 +5,6 @@ import { sortLabels, type LibraryFilters, type SortKey } from '../../hooks/useLi
 import { formatBytes, formatDayTime } from '../../lib/format';
 import type { FormatFilter } from '../../types/offline';
 import { ROUTES } from '../../integration/loris';
-import { TopNav } from '../layout/TopNav';
 import { SiteFooter } from '../layout/SiteFooter';
 import { Button, FilterDropdown, MaterialList, Pagination, ProgressIndicator, SearchBar, SectionHeader, StatDisplay, StatusBadge, TabNavigation } from '../shared';
 import { toMaterialEntry } from './materialEntry';
@@ -152,7 +151,6 @@ export function OfflineDesktop({ lib, f, onOpen, onRemove, onPurge }: Props) {
   const entries = f.paged.map((m) => toMaterialEntry(m, { onOpen, onRemove }, false));
   return (
     <div className="min-h-screen bg-page">
-      <TopNav />
       <PageHeader
         tone="dark" size="lg" accent
         className="pb-12 pt-10" contentClassName="px-8"

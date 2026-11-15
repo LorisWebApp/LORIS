@@ -5,7 +5,6 @@ import { DesktopComposer, MobileComposer } from '../../components/chatbot/Compos
 import { MessageList } from '../../components/chatbot/MessageList';
 import { MobileBottomNav, MobileTopBar } from '../../components/layout/MobileChrome';
 import { SiteFooter } from '../../components/layout/SiteFooter';
-import { TopNav } from '../../components/layout/TopNav';
 import { useChatSession } from '../../hooks/useChatSession';
 import { useIsDesktop } from '../../hooks/useMediaQuery';
 import { ROUTES, useCurrentUser } from '../../integration/loris';
@@ -49,7 +48,6 @@ export default function ChatInterface() {
 
   return (
     <div className="min-h-screen bg-page">
-      <TopNav />
       <section className="bg-ink text-white">
         <div className="mx-auto flex h-[100px] max-w-[1312px] items-center gap-3 px-8">
           <MessagesSquare size={18} className="text-white/80" />
