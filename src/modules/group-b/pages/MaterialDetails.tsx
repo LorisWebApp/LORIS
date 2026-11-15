@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams,} from "react-router-dom";
 import { supabase } from "../supabase";
-import { BookOpen, X, Download, PlayCircle, Headphones } from "lucide-react";
+import { BookOpen, X, PlayCircle, Headphones } from "lucide-react";
 import { PageHeader, Button, DetailRow, StatusBadge } from "../shared";
 
 export default function MaterialDetails() {
@@ -75,7 +75,7 @@ export default function MaterialDetails() {
             )}
 
             {(!isPDF && !isEPUB && !isAudio && !isVideo) && (
-              <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download File</Button>
+              <p className="text-sm text-muted">This file type cannot be viewed online.</p>
             )}
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function MaterialDetails() {
             {isAudio ? (
               <div className="p-8 flex flex-col items-center justify-center bg-mint-soft">
                 {material.image_url && <img src={material.image_url} className="h-48 w-48 object-cover rounded-lg shadow-lg mb-8" />}
-                <audio controls autoPlay className="w-full">
+                <audio controls controlsList="nodownload noplaybackrate" onContextMenu={(e) => e.preventDefault()} autoPlay className="w-full">
                   <source src={material.file_url} type="audio/mpeg" />
                   Your browser does not support the audio element.
                 </audio>
@@ -108,7 +108,10 @@ export default function MaterialDetails() {
             ) : isVideo ? (
               <div className="w-full bg-black flex items-center justify-center">
                 <video 
-                  controls 
+                  controls
+                  controlsList="nodownload noremoteplayback"
+                  disablePictureInPicture
+                  onContextMenu={(e) => e.preventDefault()}
                   autoPlay 
                   playsInline 
                   className="w-full max-h-[80vh] object-contain bg-black"
@@ -121,11 +124,10 @@ export default function MaterialDetails() {
               <div className="w-full flex-1 bg-mint-soft flex flex-col items-center justify-center p-8">
                 <BookOpen size={64} className="text-brand mb-4" />
                 <h2 className="text-2xl font-serif text-deep mb-2">EPUB Reader</h2>
-                <p className="text-muted mb-8 text-center max-w-md">Browsers cannot display EPUB files natively. Group C will build a custom EPUB reader here later. For now, you can download the file to read it.</p>
-                <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download EPUB</Button>
+                <p className="text-muted mb-8 text-center max-w-md">An in-app EPUB reader is not available yet. EPUB files cannot be downloaded from LORIS.</p>
               </div>
             ) : (
-              <iframe src={`${material.file_url}#toolbar=1`} className="w-full flex-1 border-0" title={material.title} />
+              <iframe src={`${material.file_url}#toolbar=0&navpanes=0&scrollbar=1`} className="w-full flex-1 border-0" title={material.title} />
             )}
           </div>
         </div>

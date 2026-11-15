@@ -37,3 +37,12 @@ button:disabled { cursor: not-allowed; }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 }
+
+
+/* Printing is disabled: print/PDF output shows only a notice. */
+@media print {
+  body * { display: none !important; }
+  body::before { content: "Printing LORIS content is not permitted."; display: block; padding: 2rem; font-size: 1.25rem; }
+}
+/* Discourage image dragging/saving. */
+img { -webkit-user-drag: none; }

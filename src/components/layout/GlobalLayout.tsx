@@ -4,6 +4,7 @@ import { BookOpen, LayoutDashboard, Library, Users, Upload, Settings, WifiOff, H
 import { useAuth } from '../../modules/group-a/contexts/AuthContext';
 import { AssistantProvider } from '../assistant/AssistantProvider';
 import { AssistantWidget } from '../assistant/AssistantWidget';
+import { ContentProtection } from './ContentProtection';
 
 type NavItem = { to: string; label: string; icon: typeof BookOpen; end?: boolean };
 
@@ -39,6 +40,7 @@ export function GlobalLayout() {
   })();
 
   return <AssistantProvider>
+    <ContentProtection />
     <div className="min-h-screen bg-page text-deep">
       <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-5 py-4 lg:px-8">
