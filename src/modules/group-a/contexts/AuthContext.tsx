@@ -36,6 +36,9 @@ interface AuthContextType {
 
 const EMPTY: RoleState = { profile: null, memberships: [] }
 
+const PENDING_ORG_MESSAGE =
+  "Your organisation registration is still awaiting review. We'll email you as soon as it is approved, and you can log in then."
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 async function fetchRoleState(user: User): Promise<RoleState> {
@@ -85,7 +88,22 @@ async function fetchRoleState(user: User): Promise<RoleState> {
     console.error('Membership retrieval failed:', membershipError.message)
   }
 
-  return { profile, memberships: (memberships ?? []) as Membership[] }
+  const state: RoleState = { profile, memberships: (memberships ?? []) as Membership[] }
+
+  // An organisation applicant is not an end user. Until a Platform Manager approves the request
+  // they get no access at all; this is decided here, before any role reaches the app, so they
+  // are never routed to end-user pages (not even for a moment).
+  if (profile.platform_role !== 'platform_manager' && !computeIsOrgAdmin(state)) {
+    const { data: pending } = await supabase
+      .from('organisation_requests')
+      .select('id')
+      .eq('submitted_by', user.id)
+      .eq('status', 'pending')
+      .limit(1)
+    if (pending && pending.length > 0) return { ...EMPTY, blocked: PENDING_ORG_MESSAGE }
+  }
+
+  return state
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -103,6 +121,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return EMPTY
     }
     const result = await fetchRoleState(nextUser)
+    if (result.blocked) {
+      if (id === requestId.current) {
+        setRoles(EMPTY)
+        await supabase.auth.signOut()
+      }
+      return result
+    }
     // Ignore results from superseded requests (e.g. quick logout/login).
     if (id === requestId.current) setRoles(result)
     return result

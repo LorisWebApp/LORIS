@@ -19,6 +19,8 @@ export interface Membership {
 export interface RoleState {
   profile: Profile | null
   memberships: Membership[]
+  /** Set when the account must not be signed in (e.g. organisation request still pending). */
+  blocked?: string
 }
 
 export function isPlatformManager(state: RoleState): boolean {
