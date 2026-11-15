@@ -67,7 +67,7 @@ export function Login() {
 
   return (
     <AuthLayout
-      title="Organisational Login"
+      title="Organisation Admin Login"
       footer={
         <p className="space-x-1">
           <span>New here?</span>
