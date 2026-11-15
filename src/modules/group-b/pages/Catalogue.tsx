@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, Search, PlayCircle, Headphones, Book, FileText, Video, X } from "lucide-react";
 import { supabase } from "../supabase";
+import { useAuth } from "../../group-a/contexts/AuthContext";
 
 export default function Catalogue() {
+  const { user } = useAuth();
   const [materials, setMaterials] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -16,17 +18,17 @@ export default function Catalogue() {
   useEffect(() => {
     const fetchMaterials = async () => {
       setIsLoading(true);
-      const { data } = await supabase
-        .from('materials')
-        .select('*')
-        .neq('status', 'archived')
-        .order('created_at', { ascending: false });
+      // Visitors without an account see the public preview view (no file links);
+      // signed-in users keep the full, RLS-scoped materials table.
+      const { data } = user
+        ? await supabase.from('materials').select('*').neq('status', 'archived').order('created_at', { ascending: false })
+        : await supabase.from('public_materials').select('*').order('created_at', { ascending: false });
         
       if (data) setMaterials(data);
       setIsLoading(false);
     };
     fetchMaterials();
-  }, []);
+  }, [user]);
 
   const filtered = materials.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()));
 

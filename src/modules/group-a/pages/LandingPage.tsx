@@ -1,26 +1,20 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight, BookOpen, BookOpenText, Building2, Download, FileText, Headphones,
-  Heart, Library, Menu, NotebookPen, Search, ShieldCheck, Upload, UserRound, Users, Video, WifiOff, X,
+  ArrowRight, Bookmark, BookOpen, BookOpenText, Building2, Check, Download, FileText, Headphones,
+  Heart, Library, Menu, NotebookPen, ShieldCheck, Upload, UserRound, Users, Video, WifiOff, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import bookshelf from '../assets/images/BookShelf.jpeg'
+import { supabase } from '../../../services/supabase'
 
 /* ---------- content ---------- */
 
 const NAV = [
   { label: 'Home', href: '#top' },
   { label: 'Catalogue', to: '/catalogue' },
-  { label: 'About', href: '#how-it-works' },
+  { label: 'About', href: '#about' },
   { label: 'Contact', href: '#contact' },
-]
-
-const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
-  { icon: Library, title: 'Digital Library', text: 'Access and manage learning materials in one place.' },
-  { icon: Building2, title: 'Organisation Management', text: 'Organisations can manage members and their learning resources.' },
-  { icon: WifiOff, title: 'Offline Access', text: 'Download resources for access without an internet connection.' },
-  { icon: Heart, title: 'Personal Library', text: 'Save favourites, notes and bookmarks for easy access.' },
 ]
 
 const STEPS = [
@@ -36,21 +30,54 @@ const ORG_POINTS: { icon: LucideIcon; text: string }[] = [
   { icon: ShieldCheck, text: 'Control access to your resources.' },
 ]
 
-// Sample titles for the public preview. Swap for live data once the public catalogue endpoint is exposed.
-const PREVIEW: { title: string; author: string; category: string; type: string; icon: LucideIcon; from: string; to: string }[] = [
-  { title: 'The Art of Deep Learning', author: 'Maya Okonkwo', category: 'Science', type: 'Book', icon: BookOpen, from: '#0b7a63', to: '#092f2c' },
-  { title: 'Design for Everyday Minds', author: 'Tom Hargreaves', category: 'Design', type: 'eBook', icon: FileText, from: '#1f6f78', to: '#05201e' },
-  { title: 'Voices of the Savannah', author: 'Chanda Mwila', category: 'Literature', type: 'Audio', icon: Headphones, from: '#2f8f83', to: '#0f3d38' },
-  { title: 'Foundations of Growth', author: 'Lena Fischer', category: 'Personal growth', type: 'Video', icon: Video, from: '#4aa595', to: '#0b3b36' },
+/* Public catalogue data: the `public_materials` view exposes descriptions only, never file links. */
+type PublicMaterial = {
+  id: string
+  title: string
+  author: string | null
+  image_url: string | null
+  file_type: string | null
+  category_name: string | null
+}
+
+const GRADIENTS = [
+  ['#0b7a63', '#092f2c'],
+  ['#1f6f78', '#05201e'],
+  ['#2f8f83', '#0f3d38'],
+  ['#4aa595', '#0b3b36'],
 ]
+
+function usePublicMaterials(limit: number) {
+  const [items, setItems] = useState<PublicMaterial[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    supabase
+      .from('public_materials')
+      .select('id,title,author,image_url,file_type,category_name')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+      .then(({ data, error }) => { if (alive) setItems(error || !data ? [] : (data as PublicMaterial[])) })
+    return () => { alive = false }
+  }, [limit])
+  return items
+}
+
+function kindOf(fileType: string | null): { label: string; icon: LucideIcon } {
+  const t = (fileType ?? '').toLowerCase()
+  if (t.includes('audio') || t.includes('mp3')) return { label: 'Audio', icon: Headphones }
+  if (t.includes('video') || t.includes('mp4')) return { label: 'Video', icon: Video }
+  if (t.includes('epub')) return { label: 'eBook', icon: FileText }
+  if (t.includes('pdf')) return { label: 'Book', icon: BookOpen }
+  return { label: 'Resource', icon: FileText }
+}
 
 const FOOTER_LINKS: { label: string; to?: string; href?: string }[] = [
   { label: 'Home', href: '#top' },
   { label: 'Catalogue', to: '/catalogue' },
-  { label: 'About', href: '#how-it-works' },
+  { label: 'About', href: '#about' },
   { label: 'Contact', href: '#contact' },
-  { label: 'Login', to: '/personal/login' },
-  { label: 'Register', to: '/personal/register' },
+  { label: 'Login', to: '/login' },
+  { label: 'Register', to: '/register' },
   { label: 'Privacy Policy', href: '#' },
   { label: 'Terms of Service', href: '#' },
 ]
@@ -88,57 +115,179 @@ function Eyebrow({ children, light = false }: { children: ReactNode; light?: boo
   return <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${light ? 'text-badge' : 'text-brand'}`}>{children}</p>
 }
 
-/** Stylised preview of the LORIS library so the hero shows the product, not a stock photo. */
-function PlatformVisual() {
+/** A real cover when the material has one, otherwise a branded gradient cover. */
+function Cover({ m, i, className = '' }: { m?: PublicMaterial; i: number; className?: string }) {
+  if (m?.image_url) return <img src={m.image_url} alt={m.title} loading="lazy" className={`h-full w-full object-cover ${className}`} />
+  const [from, to] = GRADIENTS[i % GRADIENTS.length]
   return (
-    <div className="relative mx-auto w-full max-w-[560px]">
-      <div className="overflow-hidden rounded-2xl border border-white/15 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
-        <div className="flex items-center gap-2 border-b border-line bg-mint-soft px-4 py-3">
-          <span className="size-2.5 rounded-full bg-[#f2b8b5]" />
-          <span className="size-2.5 rounded-full bg-[#f0dd9c]" />
-          <span className="size-2.5 rounded-full bg-badge" />
-          <span className="ml-3 flex-1 rounded-md bg-white px-3 py-1 text-xs text-muted">loris.app/catalogue</span>
-        </div>
-        <div className="flex">
-          <aside className="hidden w-32 shrink-0 space-y-1.5 border-r border-line bg-mint-soft p-3 sm:block">
-            {[['Catalogue', Library, true], ['My library', BookOpen, false], ['Favourites', Heart, false], ['Notes', NotebookPen, false], ['Offline', WifiOff, false]].map(([l, I, on]) => {
-              const Icon = I as LucideIcon
-              return (
-                <div key={l as string} className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-semibold ${on ? 'bg-ink text-white' : 'text-brand-text'}`}>
-                  <Icon size={13} />{l as string}
-                </div>
-              )
-            })}
-          </aside>
-          <div className="flex-1 p-4">
-            <div className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-muted">
-              <Search size={14} /> Search by title, author, or ISBN…
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {PREVIEW.slice(0, 3).map((b) => (
-                <div key={b.title}>
-                  <div className="aspect-[3/4] rounded-md p-2 text-white shadow-md" style={{ background: `linear-gradient(155deg, ${b.from}, ${b.to})` }}>
-                    <p className="font-serif text-[11px] leading-tight">{b.title}</p>
-                  </div>
-                  <p className="mt-1.5 truncate text-[11px] font-semibold text-deep">{b.title}</p>
-                  <p className="truncate text-[10px] text-muted">{b.author}</p>
+    <div className={`flex h-full w-full flex-col justify-between p-4 text-white ${className}`} style={{ background: `linear-gradient(155deg, ${from}, ${to})` }}>
+      <p className="font-serif text-lg leading-tight sm:text-xl">{m?.title ?? 'LORIS'}</p>
+      <BookOpenText size={30} strokeWidth={1.2} className="text-white/40" />
+    </div>
+  )
+}
+
+function Book({ m, i, className }: { m?: PublicMaterial; i: number; className: string }) {
+  return (
+    <div className={`absolute aspect-[2/3] overflow-hidden rounded-l-sm rounded-r-xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] ${className}`}>
+      <Cover m={m} i={i} />
+      <div aria-hidden className="absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-black/45 via-white/20 to-transparent" />
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/20" />
+      <div aria-hidden className="absolute inset-y-1 right-0 w-1.5 bg-gradient-to-l from-white/70 to-white/20" />
+    </div>
+  )
+}
+
+const glass = 'absolute border border-white/20 bg-white/10 text-white shadow-2xl backdrop-blur-md'
+
+/** Hero picture: a floating shelf of real catalogue covers with glass cards for LORIS features. */
+function HeroVisual({ items }: { items: PublicMaterial[] }) {
+  const covers = items.filter((m) => m.image_url).concat(items.filter((m) => !m.image_url)).slice(0, 3)
+  return (
+    <div className="relative mx-auto h-[420px] w-full max-w-[560px] sm:h-[520px]">
+      <div aria-hidden className="absolute inset-x-6 inset-y-10 rounded-full bg-brand/30 blur-[90px]" />
+      <Book m={covers[0]} i={0} className="left-[1%] top-[16%] w-[34%] -rotate-6" />
+      <Book m={covers[1]} i={1} className="left-[32%] top-[2%] z-10 w-[38%] rotate-2" />
+      <Book m={covers[2]} i={2} className="right-[1%] top-[20%] w-[33%] rotate-6" />
+
+      <div className={`${glass} bottom-[4%] left-[2%] z-20 w-[62%] rounded-2xl p-4`}>
+        <div className="flex items-center justify-between text-sm font-semibold"><span>Continue reading</span><span className="text-badge">64%</span></div>
+        <div className="mt-3 h-1.5 rounded-full bg-white/20"><div className="h-full w-[64%] rounded-full bg-badge" /></div>
+        <p className="mt-2 text-xs text-white/60">Pick up right where you left off</p>
+      </div>
+      <div className={`${glass} bottom-[16%] right-[0%] z-20 flex items-center gap-3 rounded-2xl px-4 py-3`}>
+        <span className="grid size-9 place-items-center rounded-lg bg-badge/20 text-badge"><Download size={18} /></span>
+        <div><p className="text-sm font-semibold">Saved offline</p><p className="text-xs text-white/60">Ready without internet</p></div>
+      </div>
+      <div className={`${glass} left-[0%] top-[2%] z-20 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold`}>
+        <NotebookPen size={15} className="text-badge" /> Notes &amp; bookmarks
+      </div>
+    </div>
+  )
+}
+
+/* ---------- features (bento) ---------- */
+
+function FeatureCopy({ icon: Icon, title, text, dark = false }: { icon: LucideIcon; title: string; text: string; dark?: boolean }) {
+  return (
+    <div>
+      <span className={`grid size-12 place-items-center rounded-xl ${dark ? 'bg-white/10 text-badge' : 'bg-mint text-brand'}`}><Icon size={23} strokeWidth={1.8} /></span>
+      <h3 className="mt-5 font-serif text-3xl">{title}</h3>
+      <p className={`mt-2 max-w-sm text-lg leading-relaxed ${dark ? 'text-white/70' : 'text-muted'}`}>{text}</p>
+    </div>
+  )
+}
+
+const bar = 'h-2 rounded-full'
+
+function Features() {
+  const card = 'relative overflow-hidden rounded-3xl p-8 transition hover:-translate-y-1'
+  return (
+    <section id="features" className="mx-auto max-w-[1240px] scroll-mt-20 px-5 py-20 lg:px-8 lg:py-28">
+      <div className="mx-auto max-w-2xl text-center">
+        <Eyebrow>What LORIS can do</Eyebrow>
+        <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Everything learning needs, in one place</h2>
+      </div>
+
+      <div className="mt-14 grid gap-5 lg:grid-cols-3">
+        {/* Digital Library */}
+        <article className={`${card} bg-ink text-white lg:col-span-2`}>
+          <div className="grid gap-8 md:grid-cols-2 md:items-center">
+            <FeatureCopy dark icon={Library} title="Digital Library" text="Access and manage learning materials in one place." />
+            <div className="space-y-3">
+              {[Headphones, BookOpen, Video].map((Icon, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                  <span className="grid size-10 place-items-center rounded-lg bg-badge/15 text-badge"><Icon size={18} /></span>
+                  <div className="flex-1 space-y-2"><div className={`${bar} w-3/4 bg-white/30`} /><div className={`${bar} w-1/2 bg-white/15`} /></div>
                 </div>
               ))}
             </div>
-            <div className="mt-4 rounded-lg bg-mint p-3">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-brand-text">
-                <span>Continue reading</span><span>64%</span>
-              </div>
-              <div className="mt-2 h-1.5 rounded-full bg-white"><div className="h-full w-[64%] rounded-full bg-brand" /></div>
+          </div>
+        </article>
+
+        {/* Organisation Management */}
+        <article className={`${card} border border-line bg-white shadow-[0_2px_12px_rgba(9,47,44,0.05)]`}>
+          <FeatureCopy icon={Building2} title="Organisation Management" text="Organisations can manage members and their learning resources." />
+          <div className="mt-6 flex items-center">
+            {['A', 'K', 'M', 'T'].map((c, i) => (
+              <span key={c} className="-ml-2 grid size-10 place-items-center rounded-full border-2 border-white text-sm font-semibold text-white first:ml-0" style={{ background: GRADIENTS[i][0] }}>{c}</span>
+            ))}
+            <span className="ml-3 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-brand-text">Members</span>
+          </div>
+        </article>
+
+        {/* Offline Access */}
+        <article className={`${card} border border-line bg-white shadow-[0_2px_12px_rgba(9,47,44,0.05)]`}>
+          <FeatureCopy icon={WifiOff} title="Offline Access" text="Download resources for access without an internet connection." />
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center gap-3 rounded-xl bg-mint p-3">
+              <span className="grid size-7 place-items-center rounded-full bg-brand text-white"><Check size={14} /></span>
+              <div className="flex-1"><div className={`${bar} w-full bg-brand/40`} /></div>
+              <span className="text-xs font-semibold text-brand-text">Saved</span>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl bg-mint-soft p-3">
+              <span className="grid size-7 place-items-center rounded-full bg-white text-brand"><Download size={14} /></span>
+              <div className="flex-1"><div className={`${bar} bg-white`}><div className={`${bar} w-3/5 bg-brand`} /></div></div>
+              <span className="text-xs font-semibold text-brand-text">60%</span>
             </div>
           </div>
+        </article>
+
+        {/* Personal Library */}
+        <article className={`${card} bg-mint lg:col-span-2`}>
+          <div className="grid gap-8 md:grid-cols-2 md:items-center">
+            <FeatureCopy icon={Heart} title="Personal Library" text="Save favourites, notes and bookmarks for easy access." />
+            <div className="grid grid-cols-3 gap-3">
+              {[[Heart, 'Favourites'], [NotebookPen, 'Notes'], [Bookmark, 'Bookmarks']].map(([I, label]) => {
+                const Icon = I as LucideIcon
+                return (
+                  <div key={label as string} className="rounded-2xl bg-white p-4 text-center shadow-[0_2px_12px_rgba(9,47,44,0.06)]">
+                    <span className="mx-auto grid size-10 place-items-center rounded-full bg-mint text-brand"><Icon size={18} /></span>
+                    <p className="mt-3 text-sm font-semibold text-deep">{label as string}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  )
+}
+
+/* ---------- about ---------- */
+
+const ACRONYM = ['Library', 'Organisation', 'Resource', 'Information', 'System']
+
+function About() {
+  return (
+    <section id="about" className="scroll-mt-20 border-y border-line bg-white py-20 lg:py-28">
+      <div className="mx-auto grid max-w-[1240px] gap-12 px-5 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 lg:px-8">
+        <div>
+          <Eyebrow>Who we are</Eyebrow>
+          <h2 className="mt-3 font-serif text-4xl sm:text-5xl">About LORIS</h2>
+          <ul className="mt-10 space-y-2">
+            {ACRONYM.map((w) => (
+              <li key={w} className="flex items-baseline gap-4 border-b border-line pb-2">
+                <span className="w-10 font-serif text-4xl text-brand">{w[0]}</span>
+                <span className="text-lg text-muted">{w.slice(1)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="space-y-6 text-lg leading-relaxed text-deep/80">
+          <p className="font-serif text-2xl leading-snug text-deep sm:text-[28px]">
+            LORIS (Library Organisation and Resource Information System) is a digital library platform designed to simplify how organisations manage, organise and distribute educational resources.
+          </p>
+          <p>
+            The platform provides a centralised environment where users can discover learning materials, access digital resources and manage their personal libraries. It also enables organisations to manage their digital collections, organise members and make educational content more accessible.
+          </p>
+          <p>
+            By bringing resource management and digital access together, LORIS aims to create a more organised and convenient learning experience.
+          </p>
         </div>
       </div>
-      <div className="absolute -bottom-5 -left-3 flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-xl sm:-left-8">
-        <span className="grid size-9 place-items-center rounded-lg bg-mint text-brand"><Download size={18} /></span>
-        <div><p className="text-sm font-semibold text-deep">Saved offline</p><p className="text-xs text-muted">Ready without internet</p></div>
-      </div>
-    </div>
+    </section>
   )
 }
 
@@ -146,6 +295,7 @@ function PlatformVisual() {
 
 export default function LandingPage() {
   const [open, setOpen] = useState(false)
+  const materials = usePublicMaterials(12)
 
   const navLink = (item: { label: string; to?: string; href?: string }, cls: string, onClick?: () => void) =>
     item.to
@@ -164,8 +314,8 @@ export default function LandingPage() {
             {NAV.map((n) => navLink(n, linkCls))}
           </nav>
           <div className="hidden items-center gap-3 md:flex">
-            <Link to="/personal/login" className="px-3 py-2 text-sm font-semibold text-white no-underline hover:text-badge">Login</Link>
-            <Link to="/personal/register" className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-ink no-underline transition hover:bg-badge">Get Started</Link>
+            <Link to="/login" className="px-3 py-2 text-sm font-semibold text-white no-underline hover:text-badge">Login</Link>
+            <Link to="/register" className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-ink no-underline transition hover:bg-badge">Get Started</Link>
           </div>
           <button className="text-white md:hidden" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen(!open)}>
             {open ? <X size={26} /> : <Menu size={26} />}
@@ -174,8 +324,8 @@ export default function LandingPage() {
         {open && (
           <div className="space-y-1 border-t border-white/10 px-5 pb-5 pt-3 md:hidden">
             {NAV.map((n) => navLink(n, 'block rounded-lg px-3 py-3 text-base font-semibold text-white/90 no-underline hover:bg-white/10', () => setOpen(false)))}
-            <Link to="/personal/login" className="block rounded-lg px-3 py-3 text-base font-semibold text-white/90 no-underline hover:bg-white/10">Login</Link>
-            <Link to="/personal/register" className="mt-2 block rounded-lg bg-white px-3 py-3 text-center text-base font-semibold text-ink no-underline">Get Started</Link>
+            <Link to="/login" className="block rounded-lg px-3 py-3 text-base font-semibold text-white/90 no-underline hover:bg-white/10">Login</Link>
+            <Link to="/register" className="mt-2 block rounded-lg bg-white px-3 py-3 text-center text-base font-semibold text-ink no-underline">Get Started</Link>
           </div>
         )}
       </header>
@@ -200,32 +350,18 @@ export default function LandingPage() {
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Btn to="/catalogue" variant="light" icon>Explore Catalogue</Btn>
-                <Btn to="/personal/register" variant="ghost">Get Started</Btn>
+                <Btn to="/register" variant="ghost">Get Started</Btn>
               </div>
               <p className="mt-6 text-sm text-white/50">
                 Popular: Novel <span className="mx-1.5">•</span> Science <span className="mx-1.5">•</span> Design <span className="mx-1.5">•</span> Personal growth
               </p>
             </div>
-            <PlatformVisual />
+            <HeroVisual items={materials ?? []} />
           </div>
         </section>
 
         {/* FEATURES */}
-        <section id="features" className="mx-auto max-w-[1240px] scroll-mt-20 px-5 py-20 lg:px-8 lg:py-28">
-          <div className="mx-auto max-w-2xl text-center">
-            <Eyebrow>What LORIS can do</Eyebrow>
-            <h2 className="mt-3 font-serif text-4xl sm:text-5xl">Everything learning needs, in one place</h2>
-          </div>
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map(({ icon: Icon, title, text }) => (
-              <article key={title} className="rounded-2xl border border-line bg-white p-7 shadow-[0_2px_12px_rgba(9,47,44,0.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_-18px_rgba(9,47,44,0.25)]">
-                <span className="grid size-12 place-items-center rounded-xl bg-mint text-brand"><Icon size={23} strokeWidth={1.8} /></span>
-                <h3 className="mt-5 font-serif text-2xl">{title}</h3>
-                <p className="mt-2 leading-relaxed text-muted">{text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
+        <Features />
 
         {/* HOW IT WORKS */}
         <section id="how-it-works" className="scroll-mt-20 bg-mint py-20 lg:py-28">
@@ -245,6 +381,9 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* ABOUT */}
+        <About />
 
         {/* FOR ORGANISATIONS */}
         <section id="organisations" className="mx-auto max-w-[1240px] scroll-mt-20 px-5 py-20 lg:px-8 lg:py-28">
@@ -280,23 +419,31 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {PREVIEW.map((m) => {
-              const Icon = m.icon
+            {materials === null && [0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-[380px] animate-pulse rounded-2xl border border-line bg-white" />
+            ))}
+            {materials?.slice(0, 4).map((m, i) => {
+              const { label, icon: Icon } = kindOf(m.file_type)
               return (
-                <article key={m.title} className="group overflow-hidden rounded-2xl border border-line bg-white shadow-[0_2px_12px_rgba(9,47,44,0.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_-18px_rgba(9,47,44,0.25)]">
-                  <div className="relative aspect-[4/3] p-6 text-white" style={{ background: `linear-gradient(155deg, ${m.from}, ${m.to})` }}>
-                    <p className="font-serif text-2xl leading-tight">{m.title}</p>
-                    <Icon size={64} strokeWidth={1} className="absolute bottom-4 right-4 text-white/25" />
+                <Link key={m.id} to={`/material/${m.id}`} className="group overflow-hidden rounded-2xl border border-line bg-white text-inherit no-underline shadow-[0_2px_12px_rgba(9,47,44,0.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_-18px_rgba(9,47,44,0.25)]">
+                  <div className="relative aspect-[4/3] overflow-hidden">
+                    <Cover m={m} i={i} className="transition duration-500 group-hover:scale-105" />
+                    {!m.image_url && <Icon size={64} strokeWidth={1} className="absolute bottom-4 right-4 text-white/25" />}
                   </div>
                   <div className="p-5">
-                    <span className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-brand-text">{m.type}</span>
-                    <h3 className="mt-3 font-serif text-xl leading-snug">{m.title}</h3>
-                    <p className="mt-1 text-muted">{m.author}</p>
-                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-brand">{m.category}</p>
+                    <span className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-brand-text">{label}</span>
+                    <h3 className="mt-3 line-clamp-2 font-serif text-xl leading-snug">{m.title}</h3>
+                    <p className="mt-1 text-muted">{m.author || 'Unknown author'}</p>
+                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-brand">{m.category_name || 'General'}</p>
                   </div>
-                </article>
+                </Link>
               )
             })}
+            {materials?.length === 0 && (
+              <p className="col-span-full rounded-2xl border border-dashed border-line bg-white p-10 text-center text-muted">
+                New resources are being added to the catalogue. Check back soon.
+              </p>
+            )}
           </div>
           <div className="mt-10 text-center"><Btn to="/catalogue" variant="outline" icon>Explore All Resources</Btn></div>
         </section>
@@ -311,7 +458,7 @@ export default function LandingPage() {
                 Join LORIS and make learning resources easier to organise, discover and access.
               </p>
               <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-                <Btn to="/personal/register" variant="light" icon>Create an Account</Btn>
+                <Btn to="/register" variant="light" icon>Create an Account</Btn>
                 <Btn to="/organisation-registration" variant="ghost">Organisation Registration</Btn>
               </div>
             </div>
