@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&display=swap');
+
+@import "tailwindcss";
+
+/* ========================================
+   LORIS DESIGN SYSTEM
+======================================== */
+
+@theme {
+  /* Typography */
+  --font-sans: "Newsreader", Georgia, serif;
+  --font-serif: "Newsreader", Georgia, serif;
+
+  /* Brand colours */
+  --color-deep: #05201E;
+  --color-ink: #092F2C;
+  --color-brand: #0B7A63;
+  --color-brand-text: #0F5A50;
+
+  /* Backgrounds and surfaces */
+  --color-page: #EFFAF7;
+  --color-mint: #E3F3EF;
+  --color-mint-soft: #F3FBF9;
+  --color-badge: #B0EFE5;
+
+  /* Text and borders */
+  --color-muted: #6A7F7B;
+  --color-line: #DBE9E5;
+
+  /* Alerts */
+  --color-rose-bg: #FDE4E4;
+  --color-rose-text: #B4232A;
+}
+
+/* ========================================
+   GLOBAL RESET
+======================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  width: 100%;
+}
+
+html {
+  font-family: "Newsreader", Georgia, serif;
+}
+
+body {
+  font-family: "Newsreader", Georgia, serif;
+  background-color: #EFFAF7;
+  color: #092F2C;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Maintain LORIS styling on browser-autofilled fields */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #F3FBF9 inset !important;
+  -webkit-text-fill-color: #05201E !important;
+  caret-color: #05201E;
+  transition: background-color 9999s ease-out 0s;
+}
