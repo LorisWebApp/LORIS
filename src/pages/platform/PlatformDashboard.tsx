@@ -41,7 +41,22 @@ export default function PlatformDashboard() {
     const { error: rpcError } = await supabase.rpc('loris_review_organisation_request', { p_request_id: id, p_decision: decision, p_notes: null });
     setBusyId(null);
     if (rpcError) { setError(`Could not ${label} the request: ${rpcError.message}`); return; }
-    setNotice(`Request ${decision}.`);
+    // Tell the applicant. The decision is already saved, so an email problem is reported, not fatal.
+    let emailNote = '';
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const base = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, '');
+      const res = await fetch(`${base}/api/notifications/organisation-decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sess.session?.access_token ?? ''}` },
+        body: JSON.stringify({ requestId: id }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { sent?: boolean; reason?: string };
+      emailNote = body.sent ? ' The applicant has been emailed.' : ` The email was not sent${body.reason ? `: ${body.reason}` : '.'}`;
+    } catch {
+      emailNote = ' The email could not be sent (server unreachable).';
+    }
+    setNotice(`Request ${decision}.${emailNote}`);
     await load();
   }
   return <div className="mx-auto max-w-[1500px] space-y-8 p-6 lg:p-10">
