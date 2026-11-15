@@ -1,0 +1,10 @@
+{
+  "name": "Library Organisation and Resource Information System",
+  "short_name": "LORIS",
+  "description": "A digital library platform for accessing and managing learning materials.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f766e"
+}
