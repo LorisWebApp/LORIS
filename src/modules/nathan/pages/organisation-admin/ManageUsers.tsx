@@ -7,7 +7,7 @@ import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../routes/paths';
 import { getDashboard, listMembers, removeMember } from '../../services/organisation.service';
-import type { Member, MemberFilter } from '../../types/membership';
+import type { Member, MemberFilter } from '../../types/dashboard';
 import { formatDate, formatNumber } from '../../utils/format';
 import { getErrorMessage } from '../../utils/validation';
 

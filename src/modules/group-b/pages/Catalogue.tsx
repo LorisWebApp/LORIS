@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Search, SlidersHorizontal, PlayCircle, Headphones, Book, Bell, FileText, Video, X } from "lucide-react";
+import { BookOpen, Search, PlayCircle, Headphones, Book, FileText, Video, X } from "lucide-react";
 import { supabase } from "../supabase";
 
 export default function Catalogue() {

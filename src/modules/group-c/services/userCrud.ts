@@ -20,11 +20,11 @@ function tableFor(path: string): TableName {
 }
 
 function fromRow(row: Record<string, any>, table: TableName): SupportedRecord {
-  const location = (row.location_data ?? {}) as Record<string, number>;
+  const location = (row.location_data ?? {}) as Record<string, unknown>;
   const common = { id: row.id, materialId: row.material_id, materialTitle: row.material?.title ?? '', page: row.page_number ?? 1, createdAt: row.created_at };
   if (table === 'user_bookmarks') return { ...common, label: row.bookmark_name ?? '', updatedAt: row.created_at } as Bookmark;
-  if (table === 'user_highlights') return { ...common, paragraph: location.paragraph ?? 0, start: location.start ?? 0, end: location.end ?? 0, text: row.highlighted_text, color: row.highlight_color ?? 'yellow' } as Highlight;
-  return { ...common, text: row.note_content, quote: location.quote, updatedAt: row.updated_at } as Note;
+  if (table === 'user_highlights') return { ...common, paragraph: typeof location.paragraph === 'number' ? location.paragraph : 0, start: typeof location.start === 'number' ? location.start : 0, end: typeof location.end === 'number' ? location.end : 0, text: row.highlighted_text, color: row.highlight_color ?? 'yellow' } as Highlight;
+  return { ...common, text: row.note_content, quote: typeof location.quote === 'string' ? location.quote : undefined, updatedAt: row.updated_at } as Note;
 }
 
 function toRow(item: SupportedRecord, table: TableName, userId: string): Record<string, unknown> {

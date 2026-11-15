@@ -19,7 +19,7 @@ export function Login() {
   const navigate = useNavigate();
   const state = (useLocation().state ?? null) as LocationState | null;
 
-  const [values, setValues] = useState({ organisationName: '', email: state?.email ?? '', password: '' });
+  const [values, setValues] = useState({ email: state?.email ?? '', password: '' });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -32,7 +32,6 @@ export function Login() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const found: FieldErrors = {};
-    if (!values.organisationName.trim()) found.organisationName = 'Enter your organisation name.';
     if (!values.email.trim()) found.email = 'Enter your email address.';
     else if (!isEmail(values.email)) found.email = 'Enter a valid email address.';
     if (!values.password) found.password = 'Enter your password.';
@@ -42,7 +41,7 @@ export function Login() {
 
     setSubmitting(true);
     try {
-      const user = await login({ organisationName: values.organisationName.trim(), email: values.email.trim(), password: values.password });
+      const user = await login({ email: values.email.trim(), password: values.password });
       if (!user.emailVerified) {
         navigate(ROUTES.verifyEmail, { replace: true, state: { email: user.email } });
         return;
@@ -56,7 +55,7 @@ export function Login() {
           return;
         }
         if (err.fieldErrors) setErrors(err.fieldErrors);
-        setFormError(err.status === 401 ? 'Incorrect organisation, email or password.' : err.message);
+        setFormError(err.status === 401 ? 'Incorrect email or password, or you do not have organisation access.' : err.message);
       } else {
         setFormError('Something went wrong. Please try again.');
       }
@@ -81,9 +80,8 @@ export function Login() {
         {state?.notice && <Alert severity="success">{state.notice}</Alert>}
         {formError && <Alert severity="error">{formError}</Alert>}
 
-        <Input label="Organisation Name" autoComplete="organization" value={values.organisationName} onChange={(e) => update('organisationName')(e.target.value)} error={errors.organisationName} disabled={submitting} />
         <Input label="Email" type="email" autoComplete="email" value={values.email} onChange={(e) => update('email')(e.target.value)} error={errors.email} disabled={submitting} />
-        <Input label="Organisation Password" type="password" autoComplete="current-password" value={values.password} onChange={(e) => update('password')(e.target.value)} error={errors.password} disabled={submitting} />
+        <Input label="Password" type="password" autoComplete="current-password" value={values.password} onChange={(e) => update('password')(e.target.value)} error={errors.password} disabled={submitting} />
 
         <Link to={ROUTES.forgotPassword} className="inline-block text-[15px] text-ink underline-offset-4 hover:underline">Forgot Password?</Link>
 
