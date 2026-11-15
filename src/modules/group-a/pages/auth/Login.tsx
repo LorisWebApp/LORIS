@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import AuthLayout from '../../components/layouts/AuthLayout'
 import Logo from '../../components/common/Logo'
@@ -11,10 +11,31 @@ import { Alert } from '../../components/shared/feedback/Alert'
 import { loginUser, logoutUser } from '../../services/auth.service'
 import { supabase } from '../../services/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { getHomePath } from '../../contexts/roles'
+import { getHomePath, type Membership } from '../../contexts/roles'
+
+/** Why a signed-in account is not an organisation administrator (shown on the organisation login). */
+async function explainNotAdmin(authUserId: string, memberships: Membership[]): Promise<string> {
+  const { data } = await supabase
+    .from('organisation_requests')
+    .select('status')
+    .eq('submitted_by', authUserId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+  const status = data?.[0]?.status as string | undefined
+
+  if (status === 'rejected') return 'Your organisation registration was not approved. Please contact LORIS support if you think this is a mistake.'
+  if (status === 'approved') {
+    const admin = memberships.find((m) => m.role === 'admin')
+    return admin
+      ? `Your organisation was approved, but your administrator access is "${admin.status}". Please contact LORIS support.`
+      : 'Your organisation was approved, but administrator access has not been set up for this account yet. Please contact LORIS support.'
+  }
+  return 'This account is not an organisation administrator. Use the personal login, or register your organisation first.'
+}
 
 function Login() {
   const navigate = useNavigate()
+  const isOrgLogin = useLocation().pathname.startsWith('/organisation')
   const { refreshRoles } = useAuth()
 
   const [email, setEmail] = useState('')
@@ -37,27 +58,22 @@ function Login() {
       // so each role lands on its own area (/platform, /manage, /dashboard).
       const roles = await refreshRoles()
 
+      // Organisation applicant still awaiting approval (AuthContext has already signed them out).
+      if (roles.blocked) throw new Error(roles.blocked)
+
       if (!roles.profile) {
         throw new Error(
           'You are signed in, but your LORIS profile could not be loaded. Please contact support.'
         )
       }
 
-      // An organisation applicant is not an end user: until the Platform Manager approves the
-      // request they get no access at all, so sign them straight back out with an explanation.
-      if (!roles.memberships.some((m) => m.status === 'active' && m.role === 'admin') && roles.profile.platform_role !== 'platform_manager') {
-        const { data: pending } = await supabase
-          .from('organisation_requests')
-          .select('id')
-          .eq('submitted_by', roles.profile.auth_user_id)
-          .eq('status', 'pending')
-          .limit(1)
-        if (pending && pending.length > 0) {
-          await logoutUser()
-          throw new Error(
-            "Your organisation registration is still awaiting review. We'll email you as soon as it is approved, and you can log in then."
-          )
-        }
+      // The organisation login is for organisation administrators only. Anyone else is signed
+      // out with the actual reason, rather than being dropped into the end-user area.
+      const isAdmin = roles.memberships.some((m) => m.status === 'active' && m.role === 'admin')
+      if (isOrgLogin && !isAdmin && roles.profile.platform_role !== 'platform_manager') {
+        const reason = await explainNotAdmin(roles.profile.auth_user_id, roles.memberships)
+        await logoutUser()
+        throw new Error(reason)
       }
 
       setSuccessMessage('Login successful!')

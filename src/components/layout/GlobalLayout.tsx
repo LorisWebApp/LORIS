@@ -105,9 +105,11 @@ export function RequireRole({ role, children }: { role: 'platform_manager' | 'ad
 }
 
 /** Login/registration pages: signed-in users go straight to their role home, never the landing page. */
-export function PublicOnly({ children }: { children: ReactNode }) {
-  const { user, profile, loading, homePath } = useAuth();
+export function PublicOnly({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
+  const { user, profile, loading, homePath, isOrgAdmin, isPlatformManager } = useAuth();
   if (loading) return <div className="min-h-screen grid place-items-center bg-page text-deep">Loading LORIS…</div>;
-  if (user && profile) return <Navigate to={homePath} replace />;
+  // adminOnly (the organisation login): a signed-in non-admin stays on the page, where the
+  // login form explains why, instead of being sent on to the end-user dashboard.
+  if (user && profile && (!adminOnly || isOrgAdmin || isPlatformManager)) return <Navigate to={homePath} replace />;
   return <>{children}</>;
 }

@@ -29,7 +29,7 @@ export default function App() {
   return <Routes>
     <Route path="/" element={<LandingPage />} />
     <Route path="/personal/login" element={<PublicOnly><Login /></PublicOnly>} />
-    <Route path="/organisation/login" element={<PublicOnly><Login /></PublicOnly>} />
+    <Route path="/organisation/login" element={<PublicOnly adminOnly><Login /></PublicOnly>} />
     <Route path="/personal/register" element={<PublicOnly><Register /></PublicOnly>} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />
