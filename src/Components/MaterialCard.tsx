@@ -1,90 +1,97 @@
-import { BookOpen, Bookmark } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useState } from 'react';
+import { Bookmark, FileText, Headphones, Video } from 'lucide-react';
 
-type MaterialProps = {
-  id: string;
-  title: string;
-  author: string;
-  category: string;
-  rating: number;
-  fileType: string;
-  pages?: string;
-  isSaved?: boolean;
-  imageUrl?: string;
-};
+interface MaterialCardProps {
+  material: {
+    id: string;
+    title: string;
+    author: string;
+    file_type: string;
+    category_id?: string;
+    image_url?: string;
+  };
+  onClick?: () => void;
+}
 
-export default function MaterialCard({ 
-  id,
-  title, 
-  author, 
-  category, 
-  rating, 
-  fileType, 
-  pages, 
-  isSaved, 
-  imageUrl 
-}: MaterialProps) {
-  
-  const getBadgeColor = (type: string) => {
-    if (type.includes('PDF')) return 'bg-red-50 text-red-700';
-    if (type.includes('EPUB') || type.includes('BOOK')) return 'bg-green-50 text-green-700';
-    if (type.includes('AUDIO')) return 'bg-purple-50 text-purple-700';
-    return 'bg-blue-50 text-blue-700';
+export default function MaterialCard({ material, onClick }: MaterialCardProps) {
+  const [isSaved, setIsSaved] = useState(false);
+
+  // Determine icon and label based on file type
+  const getTypeInfo = (type: string) => {
+    const t = type?.toLowerCase() || '';
+    if (t.includes('pdf') || t.includes('epub')) return { label: 'EPUB', icon: <FileText size={12} /> };
+    if (t.includes('audio')) return { label: 'AUDIO', icon: <Headphones size={12} /> };
+    if (t.includes('video')) return { label: 'VIDEO', icon: <Video size={12} /> };
+    return { label: 'DOC', icon: <FileText size={12} /> };
   };
 
+  const typeInfo = getTypeInfo(material.file_type);
+
   return (
-    <Link to={`/material/${id}`}>
-      <article className="group flex flex-col cursor-pointer h-full">
+    <div 
+      onClick={onClick}
+      className="bg-white border border-line rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 group cursor-pointer flex flex-col"
+    >
+      {/* Image Container */}
+      <div className="relative aspect-[4/3] bg-mint overflow-hidden">
+        {material.image_url ? (
+          <img 
+            src={material.image_url} 
+            alt={material.title} 
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-mint text-brand/30">
+            <BookOpenIcon size={48} />
+          </div>
+        )}
         
-        {/* Image / Cover Area */}
-        <div className="relative aspect-[3/4] w-full bg-vt-100 rounded-lg overflow-hidden mb-4">
-          {imageUrl ? (
-            <img src={imageUrl} alt={title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-          ) : (
-            <div className="flex h-full items-center justify-center opacity-30">
-              <BookOpen className="h-12 w-12 text-vt-900" />
-            </div>
-          )}
-
-          {/* Top Badges */}
-          <div className="absolute top-3 left-3 flex gap-2">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getBadgeColor(fileType)}`}>
-              {fileType}
-            </span>
-          </div>
-
-          {/* Saved Bookmark Icon */}
-          <button className="absolute top-3 right-3 bg-white p-1.5 rounded-full shadow-sm hover:scale-110 transition z-10">
-            <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-vt-800 text-vt-800' : 'text-gray-400'}`} />
-          </button>
-
-          {/* Bottom Pages/Length Info */}
-          {pages && (
-            <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 rounded">
-              {pages}
-            </div>
-          )}
+        {/* Top Badges */}
+        <div className="absolute top-3 left-3 flex gap-2">
+          <span className="bg-white/90 backdrop-blur-sm text-deep text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 uppercase tracking-wider">
+            {typeInfo.icon} {typeInfo.label}
+          </span>
+          <span className="bg-white/90 backdrop-blur-sm text-deep text-[10px] px-2 py-1 rounded-md capitalize">
+            {material.category_id || 'General'}
+          </span>
         </div>
 
-        {/* Text Data */}
-        <div className="flex flex-col flex-1 px-1">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold tracking-wider text-ink-500 uppercase">
-              {category}
-            </span>
-            <span className="flex items-center gap-1 text-xs font-semibold text-ink-900">
-              <span className="text-amber-500 text-sm">★</span> {rating}
-            </span>
-          </div>
+        {/* Bookmark Button */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); setIsSaved(!isSaved); }}
+          className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-deep hover:bg-white transition-colors"
+        >
+          <Bookmark size={16} className={isSaved ? "fill-deep text-deep" : "text-muted"} />
+        </button>
+      </div>
 
-          <h3 className="text-base font-semibold text-ink-900 leading-snug mb-1 group-hover:text-vt-800 transition">
-            {title}
-          </h3>
-          <p className="text-sm text-ink-500">
-            {author}
-          </p>
+      {/* Content Container */}
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="text-[18px] font-semibold text-deep mb-1 leading-tight group-hover:text-brand transition-colors line-clamp-2">
+          {material.title}
+        </h3>
+        <p className="text-[14px] text-muted mb-4">{material.author}</p>
+        
+        {/* Footer */}
+        <div className="mt-auto pt-3 border-t border-line flex items-center justify-between">
+          <span className="text-[12px] text-muted flex items-center gap-1">
+            {typeInfo.icon} {material.file_type?.split('/')[1]?.toUpperCase() || 'FILE'}
+          </span>
+          <span className="text-[12px] font-semibold text-brand flex items-center gap-1 group-hover:underline">
+            {typeInfo.label === 'AUDIO' ? 'Listen' : typeInfo.label === 'VIDEO' ? 'Watch' : 'Open'} &rarr;
+          </span>
         </div>
-      </article>
-    </Link>
+      </div>
+    </div>
+  );
+}
+
+// Fallback icon if image fails
+function BookOpenIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
   );
 }

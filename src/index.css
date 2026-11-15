@@ -1,43 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  /* Velvet Teal Core - Added 'color-' prefix so Tailwind recognizes them */
-  --color-vt-50: #F0FAFB;
-  --color-vt-100: #DCF0F1;
-  --color-vt-200: #A8D9DC;
-  --color-vt-500: #2A9AA1;
-  --color-vt-600: #187E85;
-  --color-vt-700: #12686E;
-  --color-vt-800: #0E5257;
-  --color-vt-900: #0A3D42;
-  --color-vt-950: #062B2E;
+  --color-deep: #05201E;
+  --color-ink: #092F2C;
+  --color-brand: #0B7A63;
+  --color-brand-text: #0F5A50;
+  
+  --color-page: #EFFAF7;
+  --color-mint: #E3F3EF;
+  --color-mint-soft: #F3FBF9;
+  --color-badge: #B0EFE5;
+  
+  --color-muted: #6A7F7B;
+  --color-line: #DBE9E5;
+  
+  --color-rose-bg: #FDE4E4;
+  --color-rose-text: #B4232A;
 
-  /* Neutrals */
-  --color-ink-100: #F2F4F7;
-  --color-ink-300: #D0D5DD;
-  --color-ink-500: #667085;
-  --color-ink-700: #344054;
-  --color-ink-900: #0B1B1D;
-
-  /* Semantic */
-  --color-success: #067647;
+  --font-sans: "Newsreader", Georgia, serif;
+  --font-serif: "Newsreader", Georgia, serif;
 }
-
-/* Import Serif font */
 
 body {
-  background-color: #F8FAFC; 
-  color: var(--color-ink-900);
-  font-family: system-ui, -apple-system, sans-serif;
-  margin: 0;
-}
-
-/* Ensure text is dark by default */
-h1, h2, h3, h4, h5, h6 {
-  color: var(--color-ink-900);
-}
-
-.font-serif {
-  font-family: 'Merriweather', serif;
+  background-color: var(--color-page);
+  color: var(--color-deep);
+  font-family: var(--font-serif);
 }

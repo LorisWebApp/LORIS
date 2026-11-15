@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
-import { ArrowLeft, UploadCloud, Image as ImageIcon, CheckCircle2, X } from "lucide-react";
+import { PageHeader, Button, ToastNotification, SectionHeader } from "../shared";
 
 export default function UploadMaterial() {
   const navigate = useNavigate();
@@ -9,13 +9,16 @@ export default function UploadMaterial() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
-  const [formData, setFormData] = useState({ title: "", author: "", description: "", category: "General" });
+  const [toastVariant, setToastVariant] = useState<"info" | "success" | "error">("info");
+
+  const [formData, setFormData] = useState({ title: "", author: "", description: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pdfFile || !formData.title || !formData.author) {
-      return setToastMessage("Please fill in Title, Author, and select a PDF.");
+    if (!pdfFile || !formData.title) {
+      setToastMessage("Title and Material File are required.");
+      setToastVariant("error");
+      return;
     }
     
     setLoading(true);
@@ -28,103 +31,107 @@ export default function UploadMaterial() {
       const uploadData = await res.json();
       if (!res.ok) throw new Error(uploadData.error);
 
-      const { error: dbError } = await supabase.from("materials").insert({
-        title: formData.title,
-        author: formData.author,
+      await supabase.from("materials").insert({
+        title: formData.title, 
+        author: formData.author, 
         description: formData.description,
-        category_id: formData.category, // Saving Category
-        file_name: pdfFile.name,
-        file_type: pdfFile.type || "application/pdf",
+        file_name: pdfFile.name, 
+        file_type: pdfFile.type || "application/pdf", 
         file_size: pdfFile.size,
         file_url: uploadData.url, 
         image_url: uploadData.coverUrl, 
         status: "published"
       });
 
-      if (dbError) throw dbError;
-
       setToastMessage("Material uploaded successfully!");
+      setToastVariant("success");
       setTimeout(() => navigate("/manage"), 1500);
       
     } catch (error: any) {
-      setToastMessage("Error: " + error.message);
+      setToastMessage(error.message);
+      setToastVariant("error");
     } finally {
       setLoading(false);
     }
   };
 
+  const inputClass = "w-full border-b border-line bg-transparent px-0 py-3 text-[16px] text-deep outline-none placeholder:text-muted focus:border-deep transition-colors";
+
   return (
-    <div className="min-h-screen bg-vt-700 p-6 md:p-10 flex flex-col items-center font-sans relative">
+    <div className="min-h-screen bg-[#F8FAFC] font-serif pb-20">
       
-      {toastMessage && (
-        <div className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-2 fade-in ${toastMessage.includes('Error') ? 'bg-red-600 text-white' : 'bg-vt-900 text-white'}`}>
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          <p className="font-medium">{toastMessage}</p>
-          <button onClick={() => setToastMessage(null)} className="ml-4 text-white/70 hover:text-white"><X className="h-4 w-4"/></button>
-        </div>
-      )}
-
-      <div className="w-full max-w-2xl mb-6">
-        <Link to="/manage" className="text-ink-500 hover:text-vt-900 flex items-center gap-2 text-sm font-medium transition">
-          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-        </Link>
-      </div>
-
-      <div className="bg-white p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-2xl border border-ink-200">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="bg-vt-50 p-3 rounded-xl text-vt-800"><UploadCloud className="h-8 w-8" /></div>
-          <div>
-            <h1 className="text-2xl font-bold font-serif text-ink-900">Upload New Material</h1>
-            <p className="text-sm text-ink-500">Add a new PDF and its cover image to the catalogue.</p>
-          </div>
-        </div>
+            {/* DEEP GREEN HEADER with Background Books */}
+      <div className="relative bg-deep text-white w-full overflow-hidden">
         
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-semibold text-ink-700 mb-1.5">Title <span className="text-red-500">*</span></label>
-            <input required type="text" placeholder="e.g., Introduction to Algorithms" className="w-full border border-ink-300 rounded-lg p-3 outline-none focus:border-vt-800 focus:ring-1 focus:ring-vt-800 transition text-ink-900" onChange={(e) => setFormData({...formData, title: e.target.value})} />
-          </div>
+        {/* Background Image with Fade */}
+        <div 
+          className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-30 mix-blend-luminosity" 
+          style={{ maskImage: 'linear-gradient(to left, black, transparent)' }}
+        ></div>
 
-          <div>
-            <label className="block text-sm font-semibold text-ink-700 mb-1.5">Author / Creator <span className="text-red-500">*</span></label>
-            <input required type="text" placeholder="e.g., Thomas H. Cormen" className="w-full border border-ink-300 rounded-lg p-3 outline-none focus:border-vt-800 focus:ring-1 focus:ring-vt-800 transition text-ink-900" onChange={(e) => setFormData({...formData, author: e.target.value})} />
-          </div>
+        {/* Content Container */}
+        <div className="relative z-10 max-w-[1312px] mx-auto px-8 py-10">
+          <PageHeader 
+            title="Upload Material" 
+            description="Add a new book, audio, or video to the library."
+            breadcrumbs={[{ label: "Dashboard", to: "/manage" }, { label: "Upload" }]}
+            tone="dark"
+            className="bg-transparent"
+          />
+        </div>
+      </div> 
 
-          <div>
-            <label className="block text-sm font-semibold text-ink-700 mb-1.5">Category</label>
-            <select className="w-full border border-ink-300 rounded-lg p-3 outline-none focus:border-vt-800 focus:ring-1 focus:ring-vt-800 transition text-ink-900 bg-white" onChange={(e) => setFormData({...formData, category: e.target.value})}>
-              <option value="General">General</option>
-              <option value="Novels">Novels</option>
-              <option value="Science">Science</option>
-              <option value="History">History</option>
-              <option value="Educational">Educational</option>
-            </select>
-          </div>
+      {/* FORM AREA */}
+      <main className="max-w-[1312px] mx-auto px-8 py-10">
+        <div className="max-w-3xl mx-auto bg-white border border-line shadow-sm p-8 md:p-12">
+          <form onSubmit={handleSubmit} className="space-y-10">
+            
+            {/* Details Section */}
+            <section>
+              <SectionHeader title="Material Details" size="sm" divider />
+              <div className="mt-6 space-y-6">
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Title <span className="text-rose-text">*</span></label>
+                  <input type="text" className={inputClass} placeholder="e.g. Introduction to Algorithms" onChange={(e) => setFormData({...formData, title: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Author</label>
+                  <input type="text" className={inputClass} placeholder="e.g. Thomas H. Cormen" onChange={(e) => setFormData({...formData, author: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Description</label>
+                  <textarea className={inputClass + " h-24 resize-none"} placeholder="Provide a brief summary..." onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                </div>
+              </div>
+            </section>
 
-          <div>
-            <label className="block text-sm font-semibold text-ink-700 mb-1.5">Description</label>
-            <textarea placeholder="Provide a brief summary..." className="w-full border border-ink-300 rounded-lg p-3 outline-none focus:border-vt-800 focus:ring-1 focus:ring-vt-800 transition h-28 text-ink-900 resize-none" onChange={(e) => setFormData({...formData, description: e.target.value})} />
-          </div>
+            {/* Files Section */}
+            <section>
+              <SectionHeader title="Files" size="sm" divider />
+              <div className="mt-6 grid md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-2">Cover Image (JPG/PNG)</label>
+                  <input type="file" accept="image/*" className="w-full text-[15px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2.5 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" onChange={(e) => setCoverImage(e.target.files?.[0] || null)} />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-2">Material File <span className="text-rose-text">*</span></label>
+                  <input type="file" accept=".pdf,.epub,.mp3,.mp4,.jpg,.jpeg,.png" className="w-full text-[15px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2.5 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+                  <p className="text-[13px] text-muted mt-2">Supported: PDF, EPUB, MP3, JPG, PNG, MP4</p>
+                </div>
+              </div>
+            </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-ink-700 mb-1.5 flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Cover Image</label>
-              <input type="file" accept="image/*" className="w-full border border-ink-300 rounded-lg p-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-vt-50 file:text-vt-800 hover:file:bg-vt-100 transition" onChange={(e) => setCoverImage(e.target.files?.[0] || null)} />
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-6 border-t border-line">
+              <Button variant="text" onClick={() => navigate("/manage")}>Cancel</Button>
+              <Button type="submit" loading={loading}>Publish Material</Button>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-ink-700 mb-1.5 flex items-center gap-2"><UploadCloud className="h-4 w-4" /> PDF File <span className="text-red-500">*</span></label>
-              <input required type="file" accept=".pdf" className="w-full border border-ink-300 rounded-lg p-2 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-vt-50 file:text-vt-800 hover:file:bg-vt-100 transition" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
-            </div>
-          </div>
 
-          <div className="flex gap-4 pt-4 mt-2 border-t border-ink-200">
-            <button type="button" onClick={() => navigate("/manage")} className="flex-1 bg-white border border-ink-300 text-ink-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition">Cancel</button>
-            <button disabled={loading} type="submit" className="flex-1 bg-vt-800 text-white py-3 rounded-lg font-semibold hover:bg-vt-700 disabled:opacity-50 transition flex justify-center items-center gap-2">
-              {loading ? "Uploading to Cloud..." : "Publish Material"}
-            </button>
-          </div>
-        </form>
-      </div>
+          </form>
+        </div>
+      </main>
+
+      <ToastNotification open={!!toastMessage} message={toastMessage || ""} variant={toastVariant} onClose={() => setToastMessage(null)} placement="top-right" />
     </div>
   );
 }

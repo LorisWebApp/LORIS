@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams,} from "react-router-dom";
 import { supabase } from "../supabase";
-import { ArrowLeft, BookOpen, X } from "lucide-react";
+import { BookOpen, X, Download, PlayCircle, Headphones } from "lucide-react";
+import { PageHeader, Button, DetailRow, StatusBadge } from "../shared";
 
 export default function MaterialDetails() {
   const { id } = useParams();
@@ -9,74 +10,123 @@ export default function MaterialDetails() {
   const [isReading, setIsReading] = useState(false);
 
   useEffect(() => {
-    const fetchMaterial = async () => {
-      const { data } = await supabase.from("materials").select("*").eq("id", id).single();
-      if (data) setMaterial(data);
-    };
-    fetchMaterial();
+    supabase.from("materials").select("*").eq("id", id).single().then(({ data }) => setMaterial(data));
   }, [id]);
 
-  if (!material) return <div className="p-10 text-center text-ink-500">Loading...</div>;
+  if (!material) return <div className="p-10 text-center text-muted font-serif">Loading...</div>;
+
+  const fileType = material.file_type ? material.file_type.toLowerCase() : "";
+  const isAudio = fileType.includes("audio") || fileType.includes("mp3");
+  const isVideo = fileType.includes("video") || fileType.includes("mp4");
+  const isPDF = fileType.includes("pdf");
+  const isEPUB = fileType.includes("epub");
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-10 flex justify-center">
-      <div className="max-w-3xl w-full bg-white p-8 rounded-xl shadow-lg border border-ink-300">
-        <Link to="/" className="text-vt-800 flex items-center gap-2 mb-6 hover:underline font-medium">
-          <ArrowLeft className="h-4 w-4" /> Back to Catalogue
-        </Link>
-        
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Cover Image */}
-          <div className="w-full md:w-1/3 aspect-[3/4] bg-vt-50 rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
-            {material.image_url ? (
-               <img src={material.image_url} alt={material.title} className="h-full w-full object-cover" />
-            ) : (
-               <BookOpen className="h-16 w-16 text-vt-600/40" />
-            )}
-          </div>
-
-          {/* Details */}
-          <div className="flex-1">
-            <span className="bg-vt-100 text-vt-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-              {material.category_id || "General"}
-            </span>
-            <h1 className="text-3xl font-bold font-serif text-ink-900 mt-4">{material.title}</h1>
-            <p className="text-lg text-ink-700 mt-2">By {material.author}</p>
-            
-            <hr className="my-6 border-ink-300" />
-            
-            <h3 className="font-semibold text-ink-900 mb-2">Description</h3>
-            <p className="text-ink-600 leading-relaxed">
-              {material.description || "No description provided for this material."}
-            </p>
-
-            <div className="mt-8 flex gap-4">
-              <button 
-                onClick={() => setIsReading(true)}
-                className="bg-vt-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-vt-700 transition shadow-sm"
-              >
-                Read Now
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-page font-serif pb-20">
+      
+      {/* HEADER */}
+      <div className="bg-white border-b border-line">
+        <div className="max-w-[1312px] mx-auto px-8 py-8">
+          <PageHeader 
+            title={material.title}
+            breadcrumbs={[{ label: "Catalogue", to: "/" }, { label: "Details" }]}
+          />
         </div>
       </div>
 
-      {/* ── FULL SCREEN PDF VIEWER MODAL ── */}
+      <main className="max-w-[1312px] mx-auto px-8 py-10 grid md:grid-cols-[300px_1fr] gap-12">
+        
+        {/* Cover Image */}
+        <div className="aspect-[3/4] bg-mint border border-line overflow-hidden rounded-lg shadow-sm">
+          {material.image_url ? (
+            <img src={material.image_url} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-muted"><BookOpen size={48}/></div>
+          )}
+        </div>
+
+        {/* Details Info */}
+        <div>
+          <StatusBadge label={material.category_id || "General"} variant="accent" />
+          <h1 className="text-[38px] font-medium text-deep mt-4 leading-tight">{material.title}</h1>
+          <p className="text-[17px] text-muted mt-2">By {material.author || "Unknown Author"}</p>
+
+          <div className="mt-8 border-t border-line">
+            <DetailRow label="Format" value={material.file_type?.split('/')[1]?.toUpperCase() || "FILE"} divider />
+            <DetailRow label="Description" value={material.description || "No description provided."} layout="stacked" divider />
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="mt-8 flex flex-wrap gap-4">
+            {isPDF && (
+              <Button onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16}/>}>Read Document</Button>
+            )}
+            
+            {isEPUB && (
+              <Button onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16}/>}>Open EPUB</Button>
+            )}
+
+            {isAudio && (
+              <Button onClick={() => setIsReading(true)} leftIcon={<Headphones size={16}/>}>Listen Now</Button>
+            )}
+
+            {isVideo && (
+              <Button onClick={() => setIsReading(true)} leftIcon={<PlayCircle size={16}/>}>Watch Video</Button>
+            )}
+
+            {(!isPDF && !isEPUB && !isAudio && !isVideo) && (
+              <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download File</Button>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* ── MEDIA VIEWER MODAL ── */}
       {isReading && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full h-full max-w-6xl rounded-xl flex flex-col overflow-hidden shadow-2xl">
-            <div className="bg-vt-900 px-6 py-4 flex justify-between items-center text-white">
-              <h3 className="font-semibold">{material.title}</h3>
-              <button onClick={() => setIsReading(false)} className="hover:bg-white/20 p-2 rounded-md transition">
+        <div className="fixed inset-0 bg-deep/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          
+          {/* The modal is narrower for Audio/Video, and wider for PDFs */}
+          <div className={`bg-white w-full ${isAudio || isVideo ? 'max-w-2xl' : 'max-w-6xl h-full'} rounded-xl flex flex-col overflow-hidden shadow-2xl`}>
+            
+            {/* Modal Header */}
+            <div className="bg-ink px-6 py-4 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-semibold font-serif truncate pr-4">{material.title}</h3>
+              <button onClick={() => setIsReading(false)} className="hover:bg-white/20 p-2 rounded-md transition shrink-0">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <iframe 
-              src={`${material.file_url}#toolbar=1`} 
-              className="w-full flex-1 border-0" 
-              title={material.title}
-            />
+            
+            {/* Modal Body */}
+            {isAudio ? (
+              <div className="p-8 flex flex-col items-center justify-center bg-mint-soft">
+                {material.image_url && <img src={material.image_url} className="h-48 w-48 object-cover rounded-lg shadow-lg mb-8" />}
+                <audio controls autoPlay className="w-full">
+                  <source src={material.file_url} type="audio/mpeg" />
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
+            ) : isVideo ? (
+              <div className="w-full bg-black flex items-center justify-center">
+                <video 
+                  controls 
+                  autoPlay 
+                  playsInline 
+                  className="w-full max-h-[80vh] object-contain bg-black"
+                  src={material.file_url}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            ) : isEPUB ? (
+              <div className="w-full flex-1 bg-mint-soft flex flex-col items-center justify-center p-8">
+                <BookOpen size={64} className="text-brand mb-4" />
+                <h2 className="text-2xl font-serif text-deep mb-2">EPUB Reader</h2>
+                <p className="text-muted mb-8 text-center max-w-md">Browsers cannot display EPUB files natively. Group C will build a custom EPUB reader here later. For now, you can download the file to read it.</p>
+                <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download EPUB</Button>
+              </div>
+            ) : (
+              <iframe src={`${material.file_url}#toolbar=1`} className="w-full flex-1 border-0" title={material.title} />
+            )}
           </div>
         </div>
       )}
