@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Library, Users, Upload, Settings, WifiOff, Heart, NotebookPen, UserRound, LogOut } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Library, Users, Upload, Settings, WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../modules/group-a/contexts/AuthContext';
 import { AssistantProvider } from '../assistant/AssistantProvider';
 import { AssistantWidget } from '../assistant/AssistantWidget';
@@ -12,6 +12,9 @@ type NavItem = { to: string; label: string; icon: typeof BookOpen; end?: boolean
 export function GlobalLayout() {
   const { user, loading, signOut, isPlatformManager, isOrgAdmin, homePath } = useAuth();
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Close the mobile menu whenever the route changes.
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   if (loading) return <div className="min-h-screen grid place-items-center bg-page text-deep">Loading LORIS…</div>;
   if (!user) {
@@ -49,18 +52,31 @@ export function GlobalLayout() {
     <ContentProtection />
     <div className="min-h-screen bg-page text-deep">
       <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-5 py-4 lg:px-8">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 lg:gap-6 lg:px-8 lg:py-4">
           <Link to={homePath} className="flex shrink-0 items-center gap-3 no-underline">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-white"><BookOpen size={23}/></span>
             <span className="text-2xl font-semibold tracking-tight text-deep">LORIS</span>
           </Link>
-          <nav aria-label="Global navigation" className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-2">
-            {items.map(({to,label,icon:Icon,end}) => <NavLink key={to} to={to} end={end} className={({isActive}) => `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${isActive ? 'bg-ink text-white' : 'text-brand-text hover:bg-mint'}`}>
+          {/* Desktop: full navigation bar */}
+          <nav aria-label="Global navigation" className="ml-auto hidden flex-1 flex-wrap items-center justify-end gap-2 lg:flex">
+            {items.map(({to,label,icon:Icon,end}) => <NavLink key={to} to={to} end={end} className={({isActive}) => `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold no-underline transition ${isActive ? 'bg-ink text-white' : 'text-brand-text hover:bg-mint'}`}>
               <Icon size={17}/>{label}
             </NavLink>)}
           </nav>
-          <button onClick={() => void signOut()} className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-brand-text hover:bg-mint"><LogOut size={16}/> Sign out</button>
+          <button onClick={() => void signOut()} className="hidden shrink-0 items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-brand-text hover:bg-mint lg:inline-flex"><LogOut size={16}/> Sign out</button>
+          {/* Mobile / tablet: hamburger */}
+          <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-line text-deep lg:hidden" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(o => !o)}>
+            {menuOpen ? <X size={22}/> : <Menu size={22}/>}
+          </button>
         </div>
+        {menuOpen && <div className="max-h-[calc(100vh-65px)] overflow-y-auto border-t border-line bg-white px-4 pb-4 pt-2 lg:hidden">
+          <nav aria-label="Mobile navigation" className="flex flex-col gap-1">
+            {items.map(({to,label,icon:Icon,end}) => <NavLink key={to} to={to} end={end} className={({isActive}) => `flex items-center gap-3 rounded-lg px-3 py-3 text-base font-semibold no-underline transition ${isActive ? 'bg-ink text-white' : 'text-brand-text hover:bg-mint'}`}>
+              <Icon size={19}/>{label}
+            </NavLink>)}
+          </nav>
+          <button onClick={() => void signOut()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line px-3 py-3 text-base text-brand-text hover:bg-mint"><LogOut size={18}/> Sign out</button>
+        </div>}
       </header>
       <main className="min-h-[calc(100vh-73px)]"><Outlet /></main>
     </div>
