@@ -5,7 +5,7 @@ import { sortLabels, type LibraryFilters, type SortKey } from '../../hooks/useLi
 import { formatBytes, formatBytesShort, formatSyncedAt } from '../../lib/format';
 import type { FormatFilter } from '../../types/offline';
 import { ROUTES } from '../../integration/loris';
-import { MobileBottomNav } from '../layout/MobileChrome';
+import { MobileBottomNav, MobileTopBar } from '../layout/MobileChrome';
 import { Button, MaterialList, PageHeader, ProgressIndicator, SearchBar, TabNavigation } from '../shared';
 import { toMaterialEntry } from './materialEntry';
 import { LibraryEmpty, LibraryError, LoadingGrid } from './StateViews';
@@ -61,6 +61,7 @@ export function OfflineMobile({ lib, f, onOpen, onRemove }: Props) {
   const entries = f.filtered.map((m) => toMaterialEntry(m, { onOpen, onRemove }, true));
   return (
     <div className="min-h-screen bg-page pb-24">
+      <MobileTopBar />
       <PageHeader
         tone="dark" size="sm"
         className="rounded-b-[32px] px-5 pb-5 pt-5" contentClassName=""
