@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-deep: #05201E;
+  --color-ink: #092F2C;
+  --color-brand: #0B7A63;
+  --color-brand-text: #0F5A50;
+  
+  --color-page: #EFFAF7;
+  --color-mint: #E3F3EF;
+  --color-mint-soft: #F3FBF9;
+  --color-badge: #B0EFE5;
+  
+  --color-muted: #6A7F7B;
+  --color-line: #DBE9E5;
+  
+  --color-rose-bg: #FDE4E4;
+  --color-rose-text: #B4232A;
+
+  --font-sans: "Newsreader", Georgia, serif;
+  --font-serif: "Newsreader", Georgia, serif;
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-deep);
+  font-family: var(--font-serif);
+}
