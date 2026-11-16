@@ -1,21 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   ArrowRight, Bookmark, BookOpen, BookOpenText, Building2, Check, Download, FileText, Headphones,
-  Heart, Library, Menu, NotebookPen, ShieldCheck, Upload, UserRound, Users, Video, WifiOff, X,
+  Heart, Library, NotebookPen, ShieldCheck, Upload, UserRound, Users, Video, WifiOff,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import bookshelf from '../assets/images/BookShelf.jpeg'
 import { supabase } from '../../../services/supabase'
+import { PublicHeader } from '../components/layouts/PublicHeader'
 
 /* ---------- content ---------- */
-
-const NAV = [
-  { label: 'Home', href: '#top' },
-  { label: 'Catalogue', to: '/catalogue' },
-  { label: 'About', href: '#about' },
-  { label: 'Contact', href: '#contact' },
-]
 
 const STEPS = [
   { n: '01', title: 'Discover', text: 'Browse available learning materials.' },
@@ -294,41 +288,20 @@ function About() {
 /* ---------- page ---------- */
 
 export default function LandingPage() {
-  const [open, setOpen] = useState(false)
   const materials = usePublicMaterials(12)
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
+  }, [hash])
 
   const navLink = (item: { label: string; to?: string; href?: string }, cls: string, onClick?: () => void) =>
     item.to
       ? <Link key={item.label} to={item.to} onClick={onClick} className={cls}>{item.label}</Link>
       : <a key={item.label} href={item.href} onClick={onClick} className={cls}>{item.label}</a>
 
-  const linkCls = 'text-sm font-semibold text-white/80 no-underline transition hover:text-white'
-
   return (
     <div id="top" className="min-h-screen scroll-smooth bg-page text-deep">
-      {/* NAVIGATION */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-ink/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-4 lg:px-8">
-          <a href="#top" className="no-underline"><Logo light /></a>
-          <nav aria-label="Main" className="hidden items-center gap-8 md:flex">
-            {NAV.map((n) => navLink(n, linkCls))}
-          </nav>
-          <div className="hidden items-center gap-3 md:flex">
-            <Link to="/login" className="px-3 py-2 text-sm font-semibold text-white no-underline hover:text-badge">Login</Link>
-            <Link to="/register" className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-ink no-underline transition hover:bg-badge">Get Started</Link>
-          </div>
-          <button className="text-white md:hidden" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen(!open)}>
-            {open ? <X size={26} /> : <Menu size={26} />}
-          </button>
-        </div>
-        {open && (
-          <div className="space-y-1 border-t border-white/10 px-5 pb-5 pt-3 md:hidden">
-            {NAV.map((n) => navLink(n, 'block rounded-lg px-3 py-3 text-base font-semibold text-white/90 no-underline hover:bg-white/10', () => setOpen(false)))}
-            <Link to="/login" className="block rounded-lg px-3 py-3 text-base font-semibold text-white/90 no-underline hover:bg-white/10">Login</Link>
-            <Link to="/register" className="mt-2 block rounded-lg bg-white px-3 py-3 text-center text-base font-semibold text-ink no-underline">Get Started</Link>
-          </div>
-        )}
-      </header>
+      <PublicHeader />
 
       <main>
         {/* HERO */}
