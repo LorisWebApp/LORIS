@@ -1,0 +1,14 @@
+@import '@fontsource-variable/newsreader';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply font-sans text-ink antialiased;
+  }
+  body {
+    @apply bg-mint-soft text-[17px];
+  }
+}

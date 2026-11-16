@@ -1,9 +1,15 @@
-import { BookOpen, Bell, ExternalLink, LogOut } from 'lucide-react';
-import { Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { BookOpen, ExternalLink, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { Navigate, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
+import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
+import { getShell, markAllNotificationsRead } from '../../services/platform.service';
+import type { PlatformShell } from '../../types/platform';
+import type { User } from '../../types/user';
 import { LIBRARY_URL, ROUTES } from '../../utils/constants';
-import { Button } from '../common/Button';
-import { LoadingIndicator, NavigationItem, Topbar, UserMenu } from '../shared';
+import { timeAgo } from '../../utils/format';
+import { getErrorMessage } from '../../utils/validation';
+import { Alert, LoadingIndicator, NavigationItem, NotificationPanel, Topbar, UserMenu } from '../shared';
 
 interface PlatformTab {
   label: string;
@@ -29,10 +35,21 @@ export const secondaryTabs: PlatformTab[] = [
   { label: 'Notifications', to: `${base}/notifications` },
   { label: 'Activity logs', to: `${base}/activity-logs` },
   { label: 'System monitoring', to: `${base}/system-monitoring` },
-  { label: 'Library system', to: `${base}/library-system` },
+  { label: 'Library system', to: `${base}/system` },
 ];
 
 export const allTabs: PlatformTab[] = [...primaryTabs, ...secondaryTabs];
+
+/** What the platform pages receive from the layout (via the router's outlet context). */
+export interface PlatformShellContext {
+  shell: PlatformShell | null;
+  markAllRead: () => void;
+}
+
+/** Notifications and unread count shared by the bell and the pages inside the layout. */
+export function usePlatformShell(): PlatformShellContext {
+  return useOutletContext<PlatformShellContext>();
+}
 
 function initialsOf(name: string): string {
   return name
@@ -43,18 +60,40 @@ function initialsOf(name: string): string {
     .join('');
 }
 
-/** Shell for every Platform Manager screen. Only a signed-in Platform Manager gets past it. */
-export function PlatformLayout() {
-  const { user, isLoading, logout } = useAuth();
-  const navigate = useNavigate();
+function currentTab(pathname: string): PlatformTab {
+  const matches = allTabs.filter((tab) => (tab.end ? pathname === tab.to : pathname === tab.to || pathname.startsWith(`${tab.to}/`)));
+  return matches.sort((a, b) => b.to.length - a.to.length)[0] ?? primaryTabs[0];
+}
 
-  if (isLoading) return <LoadingIndicator centered label="Checking your session" className="min-h-screen" />;
-  if (!user || user.role !== 'platform_manager') return <Navigate to={ROUTES.platformLogin} replace />;
+function PlatformFrame({ user }: { user: User }) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { data: shell, setData: setShell } = useAsync(getShell, []);
+  const [shellNotice, setShellNotice] = useState<string | null>(null);
+
+  const tab = currentTab(pathname);
+  const isOverview = tab.to === base;
+
+  const markAllRead = () => {
+    markAllNotificationsRead()
+      .then(() => setShell((current) => (current ? { notifications: current.notifications.map((n) => ({ ...n, read: true })), unread: 0 } : current)))
+      .catch((error: unknown) => setShellNotice(getErrorMessage(error)));
+  };
 
   const signOut = async () => {
     await logout().catch(() => undefined);
     navigate(ROUTES.platformLogin, { replace: true });
   };
+
+  const bellItems = (shell?.notifications ?? []).map((n) => ({
+    id: n.id,
+    title: n.headline,
+    description: `${n.label} · ${n.detail}`,
+    time: timeAgo(n.at),
+    status: 'info' as const,
+    read: n.read,
+  }));
 
   return (
     <div className="min-h-screen bg-mint-soft">
@@ -72,8 +111,8 @@ export function PlatformLayout() {
         }
         navigation={
           <div className="hidden items-center gap-5 md:flex">
-            {primaryTabs.map((tab) => (
-              <NavigationItem key={tab.to} label={tab.label} to={tab.to} end={tab.end} />
+            {primaryTabs.map((item) => (
+              <NavigationItem key={item.to} label={item.label} to={item.to} end={item.end} />
             ))}
           </div>
         }
@@ -93,9 +132,14 @@ export function PlatformLayout() {
         }
         userControls={
           <div className="flex items-center gap-2">
-            <Button variant="icon" to={`${base}/notifications`} aria-label="Notifications">
-              <Bell size={18} aria-hidden />
-            </Button>
+            <NotificationPanel
+              notifications={bellItems}
+              onMarkAllRead={markAllRead}
+              onNotificationClick={(item) => {
+                const target = shell?.notifications.find((n) => n.id === item.id);
+                if (target) navigate(target.link);
+              }}
+            />
             <UserMenu
               user={{ name: user.fullName, email: user.email, initials: initialsOf(user.fullName) }}
               items={[{ label: 'Sign out', icon: <LogOut size={16} />, tone: 'danger', onClick: signOut }]}
@@ -105,19 +149,47 @@ export function PlatformLayout() {
       />
       <div className="hidden border-b border-line bg-white md:block">
         <nav aria-label="More sections" className="mx-auto flex max-w-[1312px] items-center gap-6 px-8 py-1">
-          {secondaryTabs.map((tab) => (
-            <NavigationItem key={tab.to} label={tab.label} to={tab.to} />
+          {secondaryTabs.map((item) => (
+            <NavigationItem key={item.to} label={item.label} to={item.to} />
           ))}
         </nav>
       </div>
       <div className="border-b border-line bg-white md:hidden">
         <nav aria-label="Sections" className="flex gap-5 overflow-x-auto px-4 py-1">
-          {allTabs.map((tab) => (
-            <NavigationItem key={tab.to} label={tab.label} to={tab.to} end={tab.end} className="whitespace-nowrap" />
+          {allTabs.map((item) => (
+            <NavigationItem key={item.to} label={item.label} to={item.to} end={item.end} className="whitespace-nowrap" />
           ))}
         </nav>
       </div>
-      <Outlet />
+
+      <header className="bg-deep text-white">
+        <div className={`mx-auto max-w-[1312px] px-4 sm:px-8 ${isOverview ? 'py-12 sm:py-14' : 'py-8'}`}>
+          <p className="mb-2 text-[13px] font-semibold uppercase tracking-[0.14em] text-badge">{isOverview ? 'A space for curious minds' : 'System admin'}</p>
+          <h1 className={`m-0 font-medium leading-none tracking-tight ${isOverview ? 'text-[44px] sm:text-[56px]' : 'text-[36px] sm:text-[44px]'}`}>
+            {isOverview ? 'System overview' : tab.label}
+          </h1>
+          {isOverview && <p className="mt-4 text-[19px] text-white/75">A shared library. A growing community.</p>}
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[1312px] px-4 py-8 sm:px-8">
+        {shellNotice && (
+          <Alert severity="error" onDismiss={() => setShellNotice(null)} className="mb-4">
+            {shellNotice}
+          </Alert>
+        )}
+        <Outlet context={{ shell, markAllRead } satisfies PlatformShellContext} />
+      </main>
     </div>
   );
+}
+
+/** Shell for every Platform Manager screen. Only a signed-in Platform Manager gets past it. */
+export function PlatformLayout() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <LoadingIndicator centered label="Checking your session" className="min-h-screen" />;
+  if (!user || user.role !== 'platform_manager') return <Navigate to={ROUTES.platformLogin} replace />;
+
+  return <PlatformFrame user={user} />;
 }

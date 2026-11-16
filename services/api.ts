@@ -36,7 +36,17 @@ function readFieldErrors(errors: unknown): Record<string, string> {
   return result;
 }
 
-export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown } = {}): Promise<T> {
+function buildQuery(query?: Record<string, string | number | undefined>): string {
+  if (!query) return '';
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  });
+  const text = params.toString();
+  return text ? `?${text}` : '';
+}
+
+export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; signal?: AbortSignal; query?: Record<string, string | number | undefined>; headers?: Record<string, string> } = {}): Promise<T> {
   if (!API_BASE_URL) {
     throw new ApiError('The application is not connected to a server. Set VITE_API_BASE_URL.');
   }
@@ -44,16 +54,19 @@ export async function apiRequest<T>(path: string, options: { method?: 'GET' | 'P
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  if (options.headers) Object.assign(headers, options.headers);
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${API_BASE_URL}${path}${buildQuery(options.query)}`, {
+      signal: options.signal,
       method: options.method ?? 'GET',
       credentials: 'include',
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
-  } catch {
+  } catch (caught) {
+    if (options.signal?.aborted) throw caught;
     throw new ApiError('Could not reach the server. Check your connection and try again.');
   }
 

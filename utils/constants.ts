@@ -7,6 +7,7 @@ export const LIBRARY_URL: string = import.meta.env.VITE_LIBRARY_URL ?? '';
 export const ROUTES = {
   organisationLogin: '/organisation/login',
   organisationRegister: '/organisation/register',
+  registrationPending: (reference: string) => `/organisation/registration/${encodeURIComponent(reference)}`,
   platformLogin: '/platform/login',
   forgotPassword: '/forgot-password',
   platformDashboard: '/platform',
