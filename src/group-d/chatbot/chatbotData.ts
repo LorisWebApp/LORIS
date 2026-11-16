@@ -62,9 +62,10 @@ async function getOwnRows<T extends Record<string, unknown>>(
     .select(columns)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit)
+    .returns<T[]>();
   if (error) throw new Error("I couldn't retrieve your records. Please try again.");
-  return (data ?? []) as T[];
+  return data ?? [];
 }
 
 export async function executeChatbotDataQuery(intent: ChatbotDataIntent): Promise<string> {
