@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Library, Users, Upload, Settings, WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X } from 'lucide-react';
+import { BookOpen,  Users, Settings, WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../modules/group-a/contexts/AuthContext';
 import { AssistantProvider } from '../assistant/AssistantProvider';
 import { AssistantWidget } from '../assistant/AssistantWidget';
