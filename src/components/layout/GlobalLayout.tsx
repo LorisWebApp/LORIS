@@ -29,13 +29,10 @@ export function GlobalLayout() {
       { to: '/platform', label: 'Platform dashboard', icon: LayoutDashboard },
       { to: '/catalogue', label: 'Catalogue', icon: Library },
     ];
-    if (isOrgAdmin) return [
-      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/catalogue', label: 'Catalogue', icon: Library },
+        if (isOrgAdmin) return [
       { to: '/manage', label: 'Library management', icon: BookOpen },
       { to: '/manage/materials', label: 'Materials', icon: Settings },
       { to: '/manage/members', label: 'Members', icon: Users },
-      { to: '/upload', label: 'Upload', icon: Upload },
     ];
     return [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
