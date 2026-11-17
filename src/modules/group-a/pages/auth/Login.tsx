@@ -164,7 +164,7 @@ function Login() {
       <p className="mt-7 text-center text-base text-muted">
         Don't have an account?{' '}
         <Link
-          to="/personal/register"
+          to={isOrgLogin ? "/organisation-registration" : "/personal/register"}
           className="font-semibold text-brand-text hover:underline"
         >
           Register
