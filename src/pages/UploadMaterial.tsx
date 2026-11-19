@@ -27,7 +27,10 @@ export default function UploadMaterial() {
       formPayload.append("pdfFile", pdfFile);
       if (coverImage) formPayload.append("coverImage", coverImage);
       
-      const res = await fetch("http://localhost:3001/api/upload", { method: "POST", body: formPayload });
+     const res = await fetch(`${(import.meta.env.VITE_API_BASE_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/upload`, { 
+  method: "POST", 
+  body: formPayload 
+});
       const uploadData = await res.json();
       if (!res.ok) throw new Error(uploadData.error);
 
