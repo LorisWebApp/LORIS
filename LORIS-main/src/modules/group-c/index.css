@@ -1,0 +1,83 @@
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300..700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* Typography – one serif throughout the application */
+  --font-sans: "Newsreader", Georgia, serif;
+  --font-serif: "Newsreader", Georgia, serif;
+
+  /* Core greens */
+  --color-deep: #05201e;
+  --color-ink: #092f2c;
+  --color-brand: #0b7a63;
+  --color-brand-text: #0f5a50;
+
+  /* Backgrounds and surfaces */
+  --color-page: #effaf7;
+  --color-mint: #e3f3ef;
+  --color-mint-soft: #f3fbf9;
+  --color-badge: #b0efe5;
+  --color-white: #ffffff;
+
+  /* Text and borders */
+  --color-muted: #6a7f7b;
+  --color-line: #dbe9e5;
+
+  /* Alerts */
+  --color-rose-bg: #fde4e4;
+  --color-rose-text: #b4232a;
+
+  /* Shared component compatibility */
+  --color-success: #0b7a63;
+}
+
+:root {
+  font-family: "Newsreader", Georgia, serif;
+  color: #05201e;
+  background: #effaf7;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: "Newsreader", Georgia, serif;
+  background: #effaf7;
+  color: #05201e;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+}
