@@ -19,6 +19,8 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.LORIS_BACKEND_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'loris_session';
 const SESSION_TTL_DAYS = Math.max(1, Math.min(30, Number(process.env.SESSION_TTL_DAYS || 14)));
+const SESSION_IDLE_TIMEOUT_MINUTES = Math.max(1, Math.min(1440, Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES || 30)));
+const SESSION_IDLE_TIMEOUT_MS = SESSION_IDLE_TIMEOUT_MINUTES * 60 * 1000;
 const SESSION_ENCRYPTION_KEY_HEX = process.env.SESSION_ENCRYPTION_KEY || '';
 const SESSION_ENCRYPTION_KEY = /^[a-f0-9]{64}$/i.test(SESSION_ENCRYPTION_KEY_HEX)
   ? Buffer.from(SESSION_ENCRYPTION_KEY_HEX, 'hex') : null;
@@ -168,8 +170,10 @@ function parseCookies(header = '') {
   return cookies;
 }
 
-function sessionCookieOptions() {
-  return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api', maxAge: SESSION_TTL_DAYS * 24 * 60 * 60 * 1000 };
+function sessionCookieOptions(absoluteExpiresAt = Date.now() + SESSION_TTL_DAYS * 86400_000) {
+  const remainingAbsoluteLifetime = Date.parse(absoluteExpiresAt) - Date.now();
+  const maxAge = Math.max(0, Math.min(SESSION_IDLE_TIMEOUT_MS, remainingAbsoluteLifetime));
+  return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api', maxAge };
 }
 
 function requireTrustedOrigin(req, res, next) {
@@ -481,6 +485,10 @@ async function authenticate(req, res, next) {
       if (!rawSessionId || !/^[A-Za-z0-9_-]{40,100}$/.test(rawSessionId)) return res.status(401).json({ error: 'A valid session is required.' });
       sessionRecord = await getSessionRecord(rawSessionId);
       if (!sessionRecord || Date.parse(sessionRecord.absolute_expires_at) <= Date.now()) return res.status(401).json({ error: 'The session has expired. Please sign in again.' });
+      const lastActivity = Date.parse(sessionRecord.last_used_at || sessionRecord.created_at);
+      if (!Number.isFinite(lastActivity) || Date.now() - lastActivity >= SESSION_IDLE_TIMEOUT_MS) {
+        return res.status(401).json({ error: 'Your session expired after inactivity. Please sign in again.' });
+      }
       if (Date.parse(sessionRecord.expires_at) <= Date.now() + 60_000) sessionRecord = await refreshSessionRecord(sessionRecord);
       accessToken = decryptSessionValue(sessionRecord.access_token_ciphertext);
       req.sessionHash = sessionRecord.session_hash;
@@ -492,6 +500,15 @@ async function authenticate(req, res, next) {
     if (!response.ok) return res.status(401).json({ error: 'The access token is invalid or expired.' });
     const user = await response.json();
     if (!user || !user.id) return res.status(401).json({ error: 'Unable to identify the authenticated user.' });
+    if (sessionRecord) {
+      const now = new Date();
+      const rows = await supabaseRest(
+        `app_sessions?session_hash=eq.${encodeURIComponent(sessionRecord.session_hash)}&revoked_at=is.null`,
+        { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ last_used_at: now.toISOString() }) },
+      );
+      if (!Array.isArray(rows) || rows.length !== 1) return res.status(401).json({ error: 'Your session is no longer active. Please sign in again.' });
+      res.cookie(SESSION_COOKIE_NAME, parseCookies(req.headers.cookie)[SESSION_COOKIE_NAME], sessionCookieOptions(rows[0].absolute_expires_at));
+    }
     req.authUser = user;
     req.accessToken = accessToken;
     next();
@@ -703,7 +720,7 @@ app.post('/api/auth/login', rateLimit({ limit: 8, keyPrefix: 'auth-login' }), re
       expires_at: new Date(Date.now() + Number(tokenData.expires_in || 3600) * 1000).toISOString(),
       absolute_expires_at: expiresAt, last_used_at: new Date().toISOString(),
     }) });
-    res.cookie(SESSION_COOKIE_NAME, rawSessionId, sessionCookieOptions());
+    res.cookie(SESSION_COOKIE_NAME, rawSessionId, sessionCookieOptions(expiresAt));
     return res.json({ user: { id: tokenData.user.id, email: tokenData.user.email || email, user_metadata: tokenData.user.user_metadata || {}, email_confirmed_at: tokenData.user.email_confirmed_at || null } });
   } catch (error) {
     console.error('Login failed:', error.message);
