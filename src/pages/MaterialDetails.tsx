@@ -15,12 +15,12 @@ export default function MaterialDetails() {
 
   if (!material) return <div className="p-10 text-center text-muted font-serif">Loading...</div>;
 
-  const fileType = material.file_type ? material.file_type.toLowerCase() : "";
+    const fileType = material.file_type ? material.file_type.toLowerCase() : "";
   const isAudio = fileType.includes("audio") || fileType.includes("mp3");
   const isVideo = fileType.includes("video") || fileType.includes("mp4");
   const isPDF = fileType.includes("pdf");
   const isEPUB = fileType.includes("epub");
-
+  const isImage = fileType.includes("image") || fileType.includes("jpg") || fileType.includes("jpeg") || fileType.includes("png");
   return (
     <div className="min-h-screen bg-page font-serif pb-20">
       
@@ -56,7 +56,7 @@ export default function MaterialDetails() {
             <DetailRow label="Description" value={material.description || "No description provided."} layout="stacked" divider />
           </div>
 
-          {/* ACTION BUTTONS */}
+                  {/* ACTION BUTTONS */}
           <div className="mt-8 flex flex-wrap gap-4">
             {isPDF && (
               <Button onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16}/>}>Read Document</Button>
@@ -74,7 +74,13 @@ export default function MaterialDetails() {
               <Button onClick={() => setIsReading(true)} leftIcon={<PlayCircle size={16}/>}>Watch Video</Button>
             )}
 
-            {(!isPDF && !isEPUB && !isAudio && !isVideo) && (
+            {/* ADD THIS IMAGE BUTTON */}
+            {isImage && (
+              <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<BookOpen size={16}/>}>View Image</Button>
+            )}
+
+            {/* MAKE SURE TO ADD !isImage HERE SO IT DOESN'T SHOW BOTH BUTTONS */}
+            {(!isPDF && !isEPUB && !isAudio && !isVideo && !isImage) && (
               <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download File</Button>
             )}
           </div>
