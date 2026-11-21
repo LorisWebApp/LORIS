@@ -9,6 +9,7 @@ import { Button } from '../../components/shared/buttons/Button'
 import { Alert } from '../../components/shared/feedback/Alert'
 
 import { loginUser } from '../../services/auth.service'
+import { supabase } from '../../services/supabase'
 
 function Login() {
   const navigate = useNavigate()
@@ -27,23 +28,58 @@ function Login() {
     setLoading(true)
 
     try {
-      await loginUser(email, password)
+      // 1. Authenticate user
+      const loginData = await loginUser(email.trim(), password)
+      const userId = loginData.user?.id
 
-      setSuccessMessage('Login successful!')
+      if (!userId) {
+        throw new Error('Unable to retrieve authenticated user.')
+      }
 
-      setLoading(false)
+      console.log('LOGIN USER ID:', userId)
 
-      setTimeout(() => {
-        navigate('/', { replace: true })
-      }, 2000)
+      // 2. Retrieve the user's profile and role
+      const { data: profile, error: profileError } = await supabase
+        .from('Profiles')
+        .select('platform_role')
+        .eq('auth_user_id', userId)
+        .single()
+
+      // Diagnostic information
+      console.log('PROFILE DATA:', profile)
+      console.log('PROFILE ERROR:', profileError)
+
+      if (profileError || !profile) {
+        throw new Error(
+          'Unable to retrieve your account information. Please contact support.'
+        )
+      }
+
+      // 3. Redirect according to the user's role
+      console.log('USER ROLE:', profile.platform_role)
+
+      if (profile.platform_role === 'platform_manager') {
+        console.log('REDIRECTING TO PLATFORM DASHBOARD')
+        navigate('/platform/dashboard', { replace: true })
+      } else if (profile.platform_role === 'end_user') {
+        console.log('REDIRECTING TO END USER DASHBOARD')
+        navigate('/dashboard', { replace: true })
+      } else {
+        throw new Error(
+          `Unrecognized account role: ${profile.platform_role}`
+        )
+      }
 
     } catch (error) {
+      console.error('LOGIN/REDIRECT ERROR:', error)
+
       if (error instanceof Error) {
         setErrorMessage(error.message)
       } else {
         setErrorMessage('Something went wrong. Please try again.')
       }
 
+    } finally {
       setLoading(false)
     }
   }
@@ -63,6 +99,7 @@ function Login() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+
         <Input
           label="Email Address"
           type="email"
@@ -108,10 +145,11 @@ function Login() {
           size="lg"
           fullWidth
           loading={loading}
-          disabled={loading || !!successMessage}
+          disabled={loading}
         >
-          {successMessage ? 'Login Successful' : 'Login'}
+          {loading ? 'Logging in...' : 'Login'}
         </Button>
+
       </form>
 
       <p className="mt-7 text-center text-base text-muted">
