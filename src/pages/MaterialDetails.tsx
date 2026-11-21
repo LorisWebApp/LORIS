@@ -20,7 +20,12 @@ export default function MaterialDetails() {
   const isVideo = fileType.includes("video") || fileType.includes("mp4");
   const isPDF = fileType.includes("pdf");
   const isEPUB = fileType.includes("epub");
-  const isImage = fileType.includes("image") || fileType.includes("jpg") || fileType.includes("jpeg") || fileType.includes("png");
+   const isImage = 
+    fileType.includes("image") || 
+    fileType.includes("jpg") || 
+    fileType.includes("jpeg") || 
+    fileType.includes("png") ||
+    (material.file_url && /\.(jpg|jpeg|png|gif|webp)$/i.test(material.file_url));
   return (
     <div className="min-h-screen bg-page font-serif pb-20">
       
