@@ -16,7 +16,16 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-app.use(express.json());
+app.use(cors({
+  origin: [
+    "https://loris-five.vercel.app", 
+    "http://localhost:5173",         
+    /\.vercel\.app$/                 
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  // ADD x-organisation-id HERE:
+  allowedHeaders: ["Content-Type", "Authorization", "x-organisation-id"] 
+}));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
