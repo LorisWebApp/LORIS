@@ -6,15 +6,6 @@ const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/cl
 require('dotenv').config();
 
 const app = express();
-app.use(cors({
-  origin: [
-    "https://loris-five.vercel.app", // main production URL
-    "http://localhost:5173",         // Local dev
-    /\.vercel\.app$/                 
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
 
 app.use(cors({
   origin: [
