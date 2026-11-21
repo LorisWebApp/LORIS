@@ -125,7 +125,11 @@ export default function MaterialDetails() {
                 <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download EPUB</Button>
               </div>
             ) : (
-              <iframe src={`${material.file_url}#toolbar=1`} className="w-full flex-1 border-0" title={material.title} />
+              <iframe 
+  src={`https://docs.google.com/viewer?url=${encodeURIComponent(material.file_url)}&embedded=true`} 
+  className="w-full flex-1 border-0 bg-white" 
+  title={material.title} 
+/>
             )}
           </div>
         </div>
