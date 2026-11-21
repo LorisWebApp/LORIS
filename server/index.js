@@ -7,10 +7,15 @@ require('dotenv').config();
 
 const app = express();
 app.use(cors({
-  origin: ["https://loris-five.vercel.app", "http://localhost:5173"],
+  origin: [
+    "https://loris-five.vercel.app", // main production URL
+    "http://localhost:5173",         // Local dev
+    /\.vercel\.app$/                 
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
 app.use(express.json());
 
 const upload = multer({ storage: multer.memoryStorage() });
