@@ -1,4 +1,4 @@
-import { Bookmark } from "lucide-react";
+import { Heart } from "lucide-react";
 
 import { cx } from "./sharedUi";
 
@@ -15,7 +15,7 @@ export interface FavouriteToggleProps {
  * Favourite button displayed over a material cover.
  *
  * This toggles the material's favourite state.
- * Page bookmarks are managed separately inside the reader.
+ * Saving offline and page bookmarks are separate buttons.
  */
 export function FavouriteToggle({
   active,
@@ -48,7 +48,7 @@ export function FavouriteToggle({
           : "bg-black/25 text-white hover:bg-black/40",
       )}
     >
-      <Bookmark
+      <Heart
         size={compact ? 12 : 15}
         fill={active ? "currentColor" : "none"}
         aria-hidden="true"

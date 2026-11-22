@@ -15,6 +15,7 @@ import {
 
 import { BookCover } from "./BookCover";
 import { FavouriteToggle } from "./FavouriteToggle";
+import { SaveOfflineToggle } from "./SaveOfflineToggle";
 
 import { Button, ProgressIndicator, type MaterialListEntry } from "./sharedUi";
 
@@ -139,12 +140,15 @@ export function buildMaterialEntry(
     cover: <BookCover material={material} size={compact ? "thumb" : "card"} />,
 
     coverOverlay: (
-      <FavouriteToggle
-        active={isFavourite}
-        materialTitle={material.title}
-        compact={compact}
-        onToggle={() => onToggleFavourite(material.id)}
-      />
+      <>
+        <FavouriteToggle
+          active={isFavourite}
+          materialTitle={material.title}
+          compact={compact}
+          onToggle={() => onToggleFavourite(material.id)}
+        />
+        <SaveOfflineToggle material={material} compact={compact} />
+      </>
     ),
 
     tag: {

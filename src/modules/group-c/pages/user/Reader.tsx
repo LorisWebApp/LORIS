@@ -3,6 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { BookmarkButton } from "../../components/reader/BookmarkButton";
+import { ReaderFavouriteButton } from "../../components/reader/ReaderFavouriteButton";
+import { SaveOfflineToggle } from "../../components/user/SaveOfflineToggle";
+import { listFavouriteIds, setFavourite } from "../../services/favourites.service";
 import {
   HighlightTool,
   type TextSelectionInfo,
@@ -78,6 +81,30 @@ export function Reader() {
   const [editor, setEditor] = useState<EditorTarget | null>(null);
 
   const [toast, setToast] = useState<Toast | null>(null);
+
+  const [favourite, setFavouriteState] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    listFavouriteIds()
+      .then((ids) => !cancelled && setFavouriteState(ids.includes(materialId)))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [materialId]);
+
+  const toggleFavourite = useCallback(async () => {
+    const next = !favourite;
+    setFavouriteState(next);
+    try {
+      await setFavourite(materialId, next);
+      setToast({ variant: "success", message: next ? "Added to your favourites." : "Removed from your favourites." });
+    } catch {
+      setFavouriteState(!next);
+      setToast({ variant: "error", message: "We couldn’t update your favourites. Please try again." });
+    }
+  }, [favourite, materialId]);
 
   const scroller = useRef<HTMLElement>(null);
 
@@ -345,6 +372,22 @@ export function Reader() {
           className="hidden w-56 sm:block"
           page={page}
           totalPages={doc.pages.length}
+        />
+
+        <ReaderFavouriteButton active={favourite} onToggle={() => void toggleFavourite()} />
+
+        <SaveOfflineToggle
+          placement="reader"
+          material={{
+            id: doc.id,
+            title: doc.title,
+            author: doc.author,
+            category: "",
+            format: doc.format,
+            kind: "book",
+            pageCount: doc.pages.length,
+          }}
+          onResult={report}
         />
 
         <BookmarkButton
