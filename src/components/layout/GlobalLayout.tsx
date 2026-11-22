@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Library, Users, Upload, Settings, WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X, ClipboardList } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Library, Upload, WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../modules/group-a/contexts/AuthContext';
 import { AssistantProvider } from '../assistant/AssistantProvider';
 import { AssistantWidget } from '../assistant/AssistantWidget';
@@ -34,8 +34,6 @@ export function GlobalLayout() {
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/catalogue', label: 'Catalogue', icon: Library },
       { to: '/manage', label: 'Library management', icon: BookOpen },
-      { to: '/manage/materials', label: 'Materials', icon: Settings },
-      { to: '/manage/members', label: 'Members', icon: Users },
       { to: '/upload', label: 'Upload', icon: Upload },
     ];
     return [

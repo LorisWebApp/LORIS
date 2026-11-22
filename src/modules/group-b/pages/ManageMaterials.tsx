@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "../supabase";
 import { useAuth } from "../../group-a/contexts/AuthContext";
 import { getUploadAuthContext, getUploadApiBaseUrl } from "../services/uploadAuth";
@@ -7,6 +7,61 @@ import {
   ConfirmationDialog, ToastNotification, SearchBar, Modal
 } from "../shared";
 import { FileText, Video, Headphones, Image as ImageIcon } from "lucide-react";
+
+/** Isolated edit form: input typing no longer recreates the modal/focus trap. */
+function EditMaterialForm({ material, onClose, onSaved, onError }: {
+  material: any; onClose: () => void; onSaved: () => void; onError: (message: string) => void;
+}) {
+  const [title, setTitle] = useState(material.title ?? "");
+  const [author, setAuthor] = useState(material.author ?? "");
+  const [description, setDescription] = useState(material.description ?? "");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const previewUrl = useMemo(() => imageFile ? URL.createObjectURL(imageFile) : null, [imageFile]);
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
+  const handleSave = async () => {
+    if (saving) return;
+    if (!title.trim()) { onError("Title cannot be empty."); return; }
+    setSaving(true);
+    let uploadedObjectKeys: string[] = [];
+    let authContext: Awaited<ReturnType<typeof getUploadAuthContext>> | null = null;
+    let apiBase = "";
+    try {
+      let imageUrl = material.image_url ?? null;
+      if (imageFile) {
+        authContext = await getUploadAuthContext(material.organisation_id);
+        const payload = new FormData(); payload.append("coverImage", imageFile);
+        apiBase = getUploadApiBaseUrl();
+        const response = await fetch(`${apiBase}/api/upload`, { method: "POST", headers: { Authorization: `Bearer ${authContext.accessToken}`, "X-Organisation-Id": String(authContext.organisationId) }, body: payload });
+        const upload = await response.json();
+        if (!response.ok || !upload.coverUrl) throw new Error(upload.error || "Cover image upload failed.");
+        uploadedObjectKeys = Array.isArray(upload.objectKeys) ? upload.objectKeys : [];
+        imageUrl = upload.coverUrl;
+      }
+      const { data, error } = await supabase.from("materials").update({ title: title.trim(), author, description, image_url: imageUrl }).eq("id", material.id).select("id");
+      if (error) throw error;
+      if (!data?.length) throw new Error("Update was blocked or the material no longer exists.");
+      onSaved();
+    } catch (error) {
+      // If the metadata update failed after uploading a replacement cover, clean
+      // up the new object so it is not orphaned in R2.
+      if (uploadedObjectKeys.length && authContext && apiBase) {
+        try { await fetch(`${apiBase}/api/uploaded-objects`, { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authContext.accessToken}`, "X-Organisation-Id": String(authContext.organisationId) }, body: JSON.stringify({ objectKeys: uploadedObjectKeys }) }); } catch { /* cleanup is best effort */ }
+      }
+      onError(error instanceof Error ? error.message : "Could not update material.");
+    } finally { setSaving(false); }
+  };
+
+
+  return <div className="space-y-5 pt-4">
+    <div><label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep" /></div>
+    <div><label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Author</label><input value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep" /></div>
+    <div><label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-line bg-transparent p-3 rounded-md text-[15px] text-deep outline-none focus:border-deep h-24 resize-none" /></div>
+    <div><label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Replace Cover Image</label><div className="flex items-center gap-4"><div className="h-12 w-12 bg-mint rounded border border-line flex items-center justify-center overflow-hidden shrink-0">{previewUrl ? <img src={previewUrl} className="h-full w-full object-cover" /> : material.image_url ? <img src={material.image_url} className="h-full w-full object-cover" /> : <ImageIcon size={20} className="text-muted" />}</div><input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} className="w-full text-[14px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2 file:text-[14px] file:font-semibold file:text-deep" /></div></div>
+    <div className="flex justify-end gap-3 border-t border-line pt-5"><Button variant="text" onClick={onClose} disabled={saving}>Cancel</Button><Button onClick={() => void handleSave()} loading={saving}>Save Changes</Button></div>
+  </div>;
+}
 
 export default function ManageMaterials() {
   const [materials, setMaterials] = useState<any[]>([]);
@@ -19,11 +74,6 @@ export default function ManageMaterials() {
 
   // Edit States
   const [editingMaterial, setEditingMaterial] = useState<any>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editAuthor, setEditAuthor] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editImageFile, setEditImageFile] = useState<File | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
 
   const { memberships } = useAuth();
   const adminOrgKey = memberships
@@ -33,24 +83,23 @@ export default function ManageMaterials() {
     .join(",");
 
   // Scope explicitly to the organisations this user administers (RLS still enforces it server-side).
-  const fetchMaterials = async () => {
+  const fetchMaterials = useCallback(async () => {
     const ids = adminOrgKey ? adminOrgKey.split(",").map(Number) : [];
     if (!ids.length) { setMaterials([]); return; }
     const { data, error } = await supabase.from("materials").select("*").in("organisation_id", ids).order("created_at", { ascending: false });
     if (error) { setToastMessage(`Could not load materials: ${error.message}`); return; }
     setMaterials(data ?? []);
-  };
-
-  useEffect(() => { void fetchMaterials(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminOrgKey]);
+
+  useEffect(() => { void fetchMaterials(); }, [fetchMaterials]);
 
   // --- ACTIONS ---
 
   const confirmArchive = async () => {
     if (!archiveId) return;
-    const { error } = await supabase.from("materials").update({ status: "archived" }).eq("id", archiveId);
+    const { data, error } = await supabase.from("materials").update({ status: "archived" }).eq("id", archiveId).select("id");
     setArchiveId(null);
-    if (error) { setToastMessage(`The material could not be archived: ${error.message}`); return; }
+    if (error || !data?.length) { setToastMessage(`The material could not be archived: ${error?.message ?? "update was blocked or the record was not found."}`); return; }
     await fetchMaterials();
     setToastMessage("Material archived successfully.");
   };
@@ -78,9 +127,9 @@ export default function ManageMaterials() {
         }
       }
 
-      const { error: deleteError } = await supabase.from("materials").delete().eq("id", deleteId);
-      if (deleteError) {
-        setToastMessage(`Storage files were removed, but the database record could not be deleted: ${deleteError.message}`);
+      const { data: deletedRows, error: deleteError } = await supabase.from("materials").delete().eq("id", deleteId).select("id");
+      if (deleteError || !deletedRows?.length) {
+        setToastMessage(`Storage files were removed, but the database record could not be deleted: ${deleteError?.message ?? "delete was blocked or the record was not found."}`);
         setDeleteId(null);
         return;
       }
@@ -93,63 +142,14 @@ export default function ManageMaterials() {
     }
   };
 
-  const handleEditClick = (mat: any) => {
-    setEditingMaterial(mat);
-    setEditTitle(mat.title);
-    setEditAuthor(mat.author || "");
-    setEditDescription(mat.description || "");
-    setEditImageFile(null); 
-  };
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingMaterial) return;
-    setIsUpdating(true);
-
-    let newImageUrl = editingMaterial.image_url;
-
-    try {
-      if (editImageFile) {
-        const authContext = await getUploadAuthContext(editingMaterial.organisation_id);
-        const formPayload = new FormData();
-        formPayload.append("coverImage", editImageFile);
-        const apiBaseUrl = getUploadApiBaseUrl();
-
-        const res = await fetch(`${apiBaseUrl}/api/upload`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${authContext.accessToken}`,
-            "X-Organisation-Id": String(authContext.organisationId),
-          },
-          body: formPayload,
-        });
-        const uploadData = await res.json();
-        if (!res.ok) throw new Error(uploadData.error || "Cover image upload failed.");
-        if (!uploadData.coverUrl) throw new Error("The upload server did not return a cover image URL.");
-        newImageUrl = uploadData.coverUrl;
-      }
-
-      const { error } = await supabase
-        .from("materials")
-        .update({ 
-          title: editTitle, 
-          author: editAuthor, 
-          description: editDescription,
-          image_url: newImageUrl 
-        })
-        .eq("id", editingMaterial.id);
-
-      if (error) throw error;
-
-      setEditingMaterial(null);
-      fetchMaterials();
-      setToastMessage("Material updated successfully.");
-    } catch (error: any) {
-      setToastMessage("Error updating: " + error.message);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const handleEditClick = (mat: any) => setEditingMaterial(mat);
+  const closeEdit = useCallback(() => setEditingMaterial(null), []);
+  const handleEditSaved = useCallback(() => {
+    closeEdit();
+    void fetchMaterials();
+    setToastMessage("Material updated successfully.");
+  }, [closeEdit, fetchMaterials]);
+  const handleEditError = useCallback((message: string) => setToastMessage(`Error updating: ${message}`), []);
 
   const filteredMaterials = materials.filter((mat) => 
     mat.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -237,52 +237,17 @@ export default function ManageMaterials() {
 
       {/* EDIT MODAL - Wrapped carefully so it only renders when a material is selected */}
       {editingMaterial && (
-        <Modal 
-          open={true} 
-          onClose={() => setEditingMaterial(null)}
+        <Modal
+          open={true}
+          onClose={closeEdit}
           title="Edit Material"
           description="Update the metadata or replace the cover image."
-          actions={
-            <>
-              <Button variant="text" onClick={() => setEditingMaterial(null)} disabled={isUpdating}>Cancel</Button>
-              <Button onClick={handleUpdate} loading={isUpdating}>Save Changes</Button>
-            </>
-          }
+          dismissible
         >
-          <div className="space-y-5 pt-4">
-            <div>
-              <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Title</label>
-              <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep transition-colors" />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Author</label>
-              <input type="text" value={editAuthor} onChange={(e) => setEditAuthor(e.target.value)} className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep transition-colors" />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Description</label>
-              <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-line bg-transparent p-3 rounded-md text-[15px] text-deep outline-none focus:border-deep transition-colors h-24 resize-none" />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Replace Cover Image</label>
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-mint rounded border border-line flex items-center justify-center overflow-hidden shrink-0">
-                  {editImageFile ? (
-                     <img src={URL.createObjectURL(editImageFile)} className="h-full w-full object-cover" />
-                  ) : editingMaterial.image_url ? (
-                     <img src={editingMaterial.image_url} className="h-full w-full object-cover" />
-                  ) : (
-                     <ImageIcon size={20} className="text-muted" />
-                  )}
-                </div>
-                <input type="file" accept="image/*" onChange={(e) => setEditImageFile(e.target.files?.[0] || null)} className="w-full text-[14px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" />
-              </div>
-            </div>
-          </div>
+          <EditMaterialForm material={editingMaterial} onClose={closeEdit} onSaved={handleEditSaved} onError={handleEditError} />
         </Modal>
       )}
+
 
       {/* ARCHIVE CONFIRMATION */}
       <ConfirmationDialog 
@@ -309,7 +274,7 @@ export default function ManageMaterials() {
       <ToastNotification 
         open={!!toastMessage} 
         message={toastMessage || ""} 
-        variant={toastMessage?.includes("Error") ? "error" : "success"} 
+        variant={toastMessage && /error|failed|could not|blocked|not found/i.test(toastMessage) ? "error" : "success"} 
         placement="top-right"
         onClose={() => setToastMessage(null)} 
       />

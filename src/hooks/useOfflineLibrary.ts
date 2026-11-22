@@ -9,7 +9,7 @@ import {
 } from '../group-d/offline/offlineMaterials';
 import { getAllSyncOperations } from '../group-d/offline/indexedDB';
 import { syncPendingChanges } from '../group-d/offline/sync';
-import { isReaderConnected, lorisApi, openInReader, ReaderNotConnectedError } from '../integration/loris';
+import { lorisApi, openInReader } from '../integration/loris';
 import { getMaterialKind, isAccessValid } from '../types/offline';
 
 const LAST_SYNC_KEY = 'loris:lastSyncedAt';
@@ -117,15 +117,22 @@ export function useOfflineLibrary() {
     await refresh();
   }, [items, refresh]);
 
-  /** Checks offline-access expiry, then hands the stored file to Group C's reader. */
-  const open = useCallback(async (id: string) => {
+  /** Validates offline expiry and opens the stored blob in a native browser viewer. */
+  const open = useCallback(async (id: string, popup?: Window | null) => {
     const record = await getOfflineMaterial(id); // throws if offline access has expired
     if (!record) throw new Error('This material is no longer stored on this device.');
-    if (!isReaderConnected()) {
-      throw new ReaderNotConnectedError('Access verified, but the LORIS reader (Group C) is not connected yet, so the file cannot be opened.');
-    }
-    openInReader({ metadata: record.metadata, objectUrl: URL.createObjectURL(record.fileBlob) });
+    const objectUrl = URL.createObjectURL(record.fileBlob);
+    try {
+      if (popup && !popup.closed) {
+        popup.location.href = objectUrl;
+        popup.addEventListener('pagehide', () => URL.revokeObjectURL(objectUrl), { once: true });
+        try { popup.opener = null; } catch { /* browser window restrictions */ }
+      } else {
+        openInReader({ metadata: record.metadata, objectUrl });
+      }
+    } catch (error) { URL.revokeObjectURL(objectUrl); throw error; }
   }, []);
+
 
   const readyCount = useMemo(() => items.filter((m) => isAccessValid(m)).length, [items]);
   const healthPercent = items.length ? Math.round((readyCount / items.length) * 100) : 100;

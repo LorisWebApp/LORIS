@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { bookmarksService } from "../services/bookmarks.service";
 import { highlightsService, notesService } from "../services/notes.service";
 import { getReaderDocument } from "../services/readerContent.service";
 import { readingProgressService } from "../services/readingProgress.service";
 import { newId } from "../services/userCrud";
+
 import type {
   ActionResult,
   Bookmark,
@@ -12,6 +14,7 @@ import type {
   ReaderDocument,
   SavedProgress,
 } from "../types/reader.types";
+
 import type { HighlightColor } from "../types/userLibrary.types";
 
 const clamp = (n: number, min: number, max: number) =>
@@ -35,15 +38,24 @@ export interface NewHighlight {
   text: string;
 }
 
-/** All Reader state + actions. Progress is saved automatically (debounced, flushed on exit). */
+/**
+ * Manages all Reader state and actions.
+ *
+ * Reading progress is:
+ * - Prepared whenever the user changes pages.
+ * - Saved automatically after a short delay.
+ * - Flushed when the Reader is closed or the component unmounts.
+ */
 export function useReader(materialId: string, startPage?: number) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
+
   const [error, setError] = useState("");
   const [doc, setDoc] = useState<ReaderDocument | null>(null);
   const [source, setSource] = useState<"online" | "offline">("online");
   const [page, setPage] = useState(1);
+
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
@@ -52,91 +64,179 @@ export function useReader(materialId: string, startPage?: number) {
   const timer = useRef<number | null>(null);
   const pending = useRef<SavedProgress | null>(null);
 
+  /**
+   * Saves pending reading progress.
+   *
+   * Errors are logged so we can identify problems with Supabase,
+   * authentication, database permissions, or the save operation.
+   */
   const flush = useCallback(() => {
     if (timer.current !== null) {
       window.clearTimeout(timer.current);
       timer.current = null;
     }
 
-    if (pending.current) {
-      void readingProgressService.save(pending.current).catch(() => undefined);
-      pending.current = null;
+    if (!pending.current) {
+      return;
     }
+
+    const progressToSave = pending.current;
+
+    // Clear the pending value before starting the request.
+    pending.current = null;
+
+    console.log("Attempting to save reading progress:", progressToSave);
+
+    void readingProgressService
+      .save(progressToSave)
+      .then(() => {
+        console.log("Reading progress saved successfully.");
+      })
+      .catch((saveError: unknown) => {
+        console.error("Failed to save reading progress:", saveError);
+
+        // Restore the failed progress if no newer progress is waiting.
+        if (!pending.current) {
+          pending.current = progressToSave;
+        }
+      });
   }, []);
 
+  /**
+   * Loads the reader document and the user's saved information.
+   */
   const load = useCallback(async () => {
     startRef.current = startPage;
+
     setError("");
     setStatus("loading");
 
     try {
+      if (!materialId.trim()) {
+        throw new Error("A valid material ID is required.");
+      }
+
       const loaded = await getReaderDocument(materialId);
 
-      const [b, n, h, progress] = await Promise.all([
-        bookmarksService.list(materialId).catch(() => []),
-        notesService.list(materialId).catch(() => []),
-        highlightsService.list(materialId).catch(() => []),
-        readingProgressService.get(materialId).catch(() => null),
-      ]);
+      if (!loaded.doc.pages.length) {
+        throw new Error("This material does not contain any readable pages.");
+      }
+
+      const [savedBookmarks, savedNotes, savedHighlights, progress] =
+        await Promise.all([
+          bookmarksService.list(materialId).catch((e) => {
+            console.error("Could not load bookmarks:", e);
+            return [];
+          }),
+
+          notesService.list(materialId).catch((e) => {
+            console.error("Could not load notes:", e);
+            return [];
+          }),
+
+          highlightsService.list(materialId).catch((e) => {
+            console.error("Could not load highlights:", e);
+            return [];
+          }),
+
+          readingProgressService.get(materialId).catch((e) => {
+            console.error("Could not load reading progress:", e);
+            return null;
+          }),
+        ]);
 
       setDoc(loaded.doc);
       setSource(loaded.source);
-      setBookmarks(b);
-      setNotes(n);
-      setHighlights(h);
 
-      setPage(
-        clamp(
-          startRef.current ?? progress?.page ?? 1,
-          1,
-          loaded.doc.pages.length,
-        ),
-      );
+      setBookmarks(savedBookmarks);
+      setNotes(savedNotes);
+      setHighlights(savedHighlights);
+
+      const initialPage = startRef.current ?? progress?.page ?? 1;
+
+      setPage(clamp(initialPage, 1, loaded.doc.pages.length));
 
       setStatus("ready");
+
+      console.log("Reader loaded successfully:", {
+        materialId,
+        title: loaded.doc.title,
+        totalPages: loaded.doc.pages.length,
+        savedPage: progress?.page ?? null,
+        source: loaded.source,
+      });
     } catch (e) {
+      console.error("Reader loading failed:", e);
+
       setError(
         e instanceof Error ? e.message : "This material could not be opened.",
       );
+
       setStatus("error");
     }
   }, [materialId, startPage]);
 
+  /**
+   * Load the document when the material changes.
+   * Flush pending progress when leaving the Reader.
+   */
   useEffect(() => {
     void load();
 
-    return flush;
+    return () => {
+      flush();
+    };
   }, [load, flush]);
 
+  /**
+   * Changes the current page and schedules progress saving.
+   */
   const goTo = useCallback(
     (next: number) => {
-      if (!doc) return;
+      if (!doc) {
+        console.warn(
+          "Cannot change page because the Reader document is not loaded.",
+        );
+        return;
+      }
 
-      const p = clamp(Math.round(next) || 1, 1, doc.pages.length);
+      const nextPage = clamp(Math.round(next) || 1, 1, doc.pages.length);
 
-      setPage(p);
+      setPage(nextPage);
 
-      pending.current = {
+      const progress: SavedProgress = {
         materialId,
-        page: p,
+        page: nextPage,
         totalPages: doc.pages.length,
-        percent: Math.round((p / doc.pages.length) * 100),
-        completed: p === doc.pages.length,
+        percent: Math.round((nextPage / doc.pages.length) * 100),
+        completed: nextPage === doc.pages.length,
         updatedAt: new Date().toISOString(),
       };
 
+      pending.current = progress;
+
+      console.log("Reading progress prepared:", progress);
+
+      // Reset the previous timer.
       if (timer.current !== null) {
         window.clearTimeout(timer.current);
       }
 
-      timer.current = window.setTimeout(flush, 700);
+      // Save after the user has stopped changing pages for 700ms.
+      timer.current = window.setTimeout(() => {
+        flush();
+      }, 700);
     },
     [doc, materialId, flush],
   );
 
   const title = doc?.title ?? "";
+
   const now = () => new Date().toISOString();
 
+  /**
+   * Adds or removes a bookmark on the current page.
+   */
   const toggleBookmark = useCallback(async (): Promise<ActionResult> => {
     const existing = bookmarks.find((b) => b.page === page);
 
@@ -163,11 +263,16 @@ export function useReader(materialId: string, startPage?: number) {
       setBookmarks((all) => [item, ...all]);
 
       return ok(`Page ${page} bookmarked.`);
-    } catch {
+    } catch (e) {
+      console.error("Bookmark operation failed:", e);
+
       return fail("We couldn’t update your bookmark. Please try again.");
     }
   }, [bookmarks, page, materialId, title]);
 
+  /**
+   * Removes a bookmark.
+   */
   const removeBookmark = useCallback(
     async (id: string): Promise<ActionResult> => {
       try {
@@ -176,13 +281,18 @@ export function useReader(materialId: string, startPage?: number) {
         setBookmarks((all) => all.filter((b) => b.id !== id));
 
         return ok("Bookmark removed.");
-      } catch {
+      } catch (e) {
+        console.error("Removing bookmark failed:", e);
+
         return fail("We couldn’t remove that bookmark.");
       }
     },
     [],
   );
 
+  /**
+   * Creates a new note or updates an existing note.
+   */
   const saveNote = useCallback(
     async (
       text: string,
@@ -194,7 +304,7 @@ export function useReader(materialId: string, startPage?: number) {
     ): Promise<ActionResult> => {
       try {
         if (target.existing) {
-          const updated = {
+          const updated: Note = {
             ...target.existing,
             text,
             updatedAt: now(),
@@ -225,13 +335,18 @@ export function useReader(materialId: string, startPage?: number) {
         setNotes((all) => [item, ...all]);
 
         return ok("Note saved.");
-      } catch {
+      } catch (e) {
+        console.error("Saving note failed:", e);
+
         return fail("We couldn’t save your note. Please try again.");
       }
     },
     [materialId, title],
   );
 
+  /**
+   * Deletes a note.
+   */
   const removeNote = useCallback(async (id: string): Promise<ActionResult> => {
     try {
       await notesService.remove(id);
@@ -239,11 +354,16 @@ export function useReader(materialId: string, startPage?: number) {
       setNotes((all) => all.filter((n) => n.id !== id));
 
       return ok("Note deleted.");
-    } catch {
-      return fail("We couldn’t delete that note.");
+    } catch (e) {
+      console.error("Deleting note failed:", e);
+
+      return fail("We couldn’t delete your note.");
     }
   }, []);
 
+  /**
+   * Creates a highlight.
+   */
   const addHighlight = useCallback(
     async (h: NewHighlight, color: HighlightColor): Promise<ActionResult> => {
       try {
@@ -261,13 +381,18 @@ export function useReader(materialId: string, startPage?: number) {
         setHighlights((all) => [item, ...all]);
 
         return ok("Highlight saved.");
-      } catch {
-        return fail("We couldn’t save that highlight.");
+      } catch (e) {
+        console.error("Saving highlight failed:", e);
+
+        return fail("We couldn’t save that highlight. Please try again.");
       }
     },
     [materialId, title],
   );
 
+  /**
+   * Removes a highlight.
+   */
   const removeHighlight = useCallback(
     async (id: string): Promise<ActionResult> => {
       try {
@@ -276,7 +401,9 @@ export function useReader(materialId: string, startPage?: number) {
         setHighlights((all) => all.filter((h) => h.id !== id));
 
         return ok("Highlight removed.");
-      } catch {
+      } catch (e) {
+        console.error("Removing highlight failed:", e);
+
         return fail("We couldn’t remove that highlight.");
       }
     },
@@ -292,12 +419,16 @@ export function useReader(materialId: string, startPage?: number) {
     bookmarks,
     notes,
     highlights,
+
     reload: load,
     goTo,
+
     toggleBookmark,
     removeBookmark,
+
     saveNote,
     removeNote,
+
     addHighlight,
     removeHighlight,
   };

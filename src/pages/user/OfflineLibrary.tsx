@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { OfflineMaterialMetadata } from '../../group-d/types/models';
 import { useIsDesktop } from '../../hooks/useMediaQuery';
 import { useLibraryFilters } from '../../hooks/useLibraryFilters';
@@ -12,6 +13,7 @@ interface ToastState { message: string; variant: 'error' | 'warning' }
 
 export default function OfflineLibrary() {
   const lib = useOfflineLibrary();
+  const navigate = useNavigate();
   const f = useLibraryFilters(lib.items);
   const isDesktop = useIsDesktop();
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -23,9 +25,16 @@ export default function OfflineLibrary() {
     setToast({ message: e instanceof Error ? e.message : 'Something went wrong.', variant: e instanceof ReaderNotConnectedError ? 'warning' : 'error' });
 
   const onOpen = useCallback(async (id: string) => {
-    try { await lib.open(id); } catch (e) { fail(e); }
+    const item = lib.items.find((material) => material.id === id);
+    const epub = item && (item.mimeType.toLowerCase().includes("epub") || item.fileName.toLowerCase().endsWith(".epub"));
+    if (epub) { navigate(`/offline-reader/${encodeURIComponent(id)}`); return; }
+    // Open a blank tab synchronously from the click so browsers allow navigation
+    // after the asynchronous IndexedDB read.
+    const popup = window.open("about:blank", "_blank");
+    if (!popup) { fail(new Error("The browser blocked the offline viewer. Allow pop-ups for LORIS and try again.")); return; }
+    try { await lib.open(id, popup); } catch (e) { popup.close(); fail(e); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lib]);
+  }, [lib.items, lib.open, navigate]);
 
   return (
     <>

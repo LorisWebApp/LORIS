@@ -2,16 +2,23 @@ import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import { useAuth } from "../../group-a/contexts/AuthContext";
-import { BookOpen, X, PlayCircle, Headphones } from "lucide-react";
-import { PageHeader, Button, DetailRow, StatusBadge } from "../shared";
+import { BookOpen, X, PlayCircle, Headphones, CloudDownload } from "lucide-react";
+import { PageHeader, Button, DetailRow, StatusBadge, ToastNotification } from "../shared";
+import { FavouriteToggle } from "../../group-c/components/user/FavouriteToggle";
+import { listFavouriteIds, setFavourite } from "../../group-c/services/favourites.service";
+import { saveMaterialForOffline } from "../../../group-d/offline/offlineMaterials";
+import { getAccessToken } from "../../../integration/loris";
 
 export default function MaterialDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isOrgAdmin, isPlatformManager } = useAuth();
 
   const [material, setMaterial] = useState<any>(null);
   const [isReading, setIsReading] = useState(false);
+  const [isFavourite, setIsFavourite] = useState(false);
+  const [toast, setToast] = useState<{message: string; variant: "success" | "error"} | null>(null);
+  const [savingOffline, setSavingOffline] = useState(false);
 
   useEffect(() => {
     // Guests read the public preview view (description only, no file link).
@@ -21,6 +28,13 @@ export default function MaterialDetails() {
       .eq("id", id)
       .single()
       .then(({ data }) => setMaterial(data));
+  }, [id, user]);
+
+  useEffect(() => {
+    if (!user || !id) { setIsFavourite(false); return; }
+    let cancelled = false;
+    listFavouriteIds().then((ids) => { if (!cancelled) setIsFavourite(ids.includes(String(id))); }).catch((error) => console.warn("Could not load favourite state", error));
+    return () => { cancelled = true; };
   }, [id, user]);
 
   if (!material) {
@@ -35,6 +49,7 @@ export default function MaterialDetails() {
   const isVideo = fileType.includes("video") || fileType.includes("mp4");
   const isPDF = fileType.includes("pdf");
   const isEPUB = fileType.includes("epub");
+  const isImage = fileType.includes("image") || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(String(material.file_url ?? ""));
 
   /**
    * Opens EPUB materials using the existing Group C Reader.
@@ -46,6 +61,38 @@ export default function MaterialDetails() {
     }
 
     navigate(`/user/reader/${encodeURIComponent(id)}`);
+  };
+
+  const saveOffline = async () => {
+    if (!user || !material || savingOffline) return;
+    if (!navigator.onLine) { setToast({ message: "Connect to the internet to save this material offline.", variant: "error" }); return; }
+    setSavingOffline(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Sign in to save materials offline.");
+      const apiBase = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "").trim().replace(/\/+$/, "");
+      if (!apiBase) throw new Error("The offline download service is not configured (VITE_API_BASE_URL).");
+      const grantResponse = await fetch(`${apiBase}/api/offline/materials/${encodeURIComponent(String(material.id))}/download`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const grant = await grantResponse.json().catch(() => ({})) as { url?: string; sizeBytes?: number; expiresAt?: string; error?: string };
+      if (!grantResponse.ok || !grant.url || !grant.expiresAt) throw new Error(grant.error || "The server could not authorise this offline download.");
+      const fileResponse = await fetch(grant.url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!fileResponse.ok) throw new Error("The material file could not be downloaded.");
+      const fileBlob = await fileResponse.blob();
+      await saveMaterialForOffline({
+        material: {
+          id: String(material.id), title: material.title, author: material.author ?? "", category: material.category_name ?? "General",
+          fileName: material.file_name ?? `${material.title}.${String(material.file_type ?? "").split("/").pop() || "file"}`,
+          mimeType: material.file_type ?? fileBlob.type ?? "application/octet-stream", fileSize: fileBlob.size || Number(grant.sizeBytes ?? 0),
+          sourceUrl: material.file_url, organisationId: material.organisation_id ? String(material.organisation_id) : undefined,
+          ownerUserId: user.id, coverUrl: material.image_url ?? undefined,
+        },
+        fileBlob,
+        permission: { allowed: true, offlineAllowedUntil: grant.expiresAt, validatedAt: new Date().toISOString() },
+      });
+      setToast({ message: "Material saved to this device for offline access.", variant: "success" });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : "Could not save this material offline.", variant: "error" });
+    } finally { setSavingOffline(false); }
   };
 
   return (
@@ -65,7 +112,7 @@ export default function MaterialDetails() {
 
       <main className="max-w-[1312px] mx-auto px-8 py-10 grid md:grid-cols-[300px_1fr] gap-12">
         {/* Cover Image */}
-        <div className="aspect-[3/4] bg-mint border border-line overflow-hidden rounded-lg shadow-sm">
+        <div className="aspect-[3/4] bg-mint border border-line overflow-hidden rounded-lg shadow-sm relative">
           {material.image_url ? (
             <img
               src={material.image_url}
@@ -77,7 +124,14 @@ export default function MaterialDetails() {
               <BookOpen size={48} />
             </div>
           )}
+          {user && <FavouriteToggle active={isFavourite} materialTitle={material.title} onToggle={() => void (async () => {
+            const previous = isFavourite;
+            setIsFavourite(!previous);
+            try { await setFavourite(String(material.id), !previous); setToast({ message: previous ? "Removed from favourites." : "Added to favourites.", variant: "success" }); }
+            catch (error) { setIsFavourite(previous); setToast({ message: error instanceof Error ? error.message : "Could not update favourite.", variant: "error" }); }
+          })()} />}
         </div>
+
 
         {/* Details Info */}
         <div>
@@ -175,11 +229,13 @@ export default function MaterialDetails() {
                 Watch Video
               </Button>
             )}
+            {isImage && <Button onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16} />}>View Image</Button>}
+            {user && !isOrgAdmin && !isPlatformManager && <Button variant="outline" onClick={() => void saveOffline()} loading={savingOffline} leftIcon={<CloudDownload size={16} />}>Save offline</Button>}
 
-            {!isPDF && !isEPUB && !isAudio && !isVideo && (
-              <p className="text-sm text-muted">
-                This file type cannot be viewed online.
-              </p>
+            {!isPDF && !isEPUB && !isAudio && !isVideo && !isImage && (
+              <Button onClick={() => window.open(material.file_url, "_blank", "noopener,noreferrer")} leftIcon={<BookOpen size={16} />}>
+                Download / Open File
+              </Button>
             )}
           </div>
         </div>
@@ -244,6 +300,10 @@ export default function MaterialDetails() {
                   Your browser does not support the video tag.
                 </video>
               </div>
+            ) : isImage ? (
+              <div className="w-full flex-1 bg-black flex items-center justify-center p-4 overflow-auto">
+                <img src={material.file_url} alt={material.title} className="max-h-full max-w-full object-contain" />
+              </div>
             ) : (
               <iframe
                 src={`${material.file_url}#toolbar=0&navpanes=0&scrollbar=1`}
@@ -254,6 +314,7 @@ export default function MaterialDetails() {
           </div>
         </div>
       )}
+      <ToastNotification open={!!toast} message={toast?.message ?? ""} variant={toast?.variant ?? "success"} onClose={() => setToast(null)} placement="top-right" />
     </div>
   );
 }

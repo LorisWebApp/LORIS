@@ -160,7 +160,7 @@ export default function OrganisationOverview() {
                   </div>
                   <h3 className="text-[22px] font-semibold text-deep mb-2">Materials</h3>
                   <p className="text-[16px] text-muted mb-6">Review and manage your existing materials.</p>
-                  <Button to="/manage/materials" variant="text" className="px-0 text-[#0B7A63]">Go to materials &rarr;</Button>
+                  <Button to="/manage/table" variant="text" className="px-0 text-[#0B7A63]">Go to materials &rarr;</Button>
                 </div>
               </div>
 

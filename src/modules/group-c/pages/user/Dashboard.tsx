@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 
 import { AnnotationFeed } from "../../components/user/AnnotationFeed";
 import { DashboardHero } from "../../components/user/DashboardHero";
-import { OfflineStoragePanel } from "../../components/user/OfflineStoragePanel";
 import { ReadingShelf } from "../../components/user/ReadingShelf";
 import { RecommendedSection } from "../../components/user/RecommendedSection";
 
@@ -35,8 +34,7 @@ export function Dashboard() {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const isOnline = useNetworkStatus();
 
-  const { state, favouriteIds, reload, toggleFavourite, removeDownload } =
-    useDashboard();
+  const { state, favouriteIds, reload, toggleFavourite } = useDashboard();
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const [busyFavouriteIds, setBusyFavouriteIds] = useState<ReadonlySet<string>>(
@@ -104,36 +102,6 @@ export function Dashboard() {
     [busyFavouriteIds, toggleFavourite],
   );
 
-  const handleRemoveDownload = useCallback(
-    async (downloadId: string): Promise<boolean> => {
-      try {
-        const result = await removeDownload(downloadId);
-
-        setToast(
-          result.ok
-            ? {
-                variant: "success",
-                message: "Removed from your offline library.",
-              }
-            : {
-                variant: "error",
-                message: "We couldn’t remove that download. Please try again.",
-              },
-        );
-
-        return result.ok;
-      } catch {
-        setToast({
-          variant: "error",
-          message: "We couldn’t remove that download. Please try again.",
-        });
-
-        return false;
-      }
-    },
-    [removeDownload],
-  );
-
   return (
     <div className="min-h-screen">
       <OfflineIndicator
@@ -198,11 +166,13 @@ export function Dashboard() {
                 isDesktop={isDesktop}
               />
 
-              <OfflineStoragePanel
-                downloads={data.offline.downloads}
-                isDesktop={isDesktop}
-                onRemove={handleRemoveDownload}
-              />
+              <section className={isDesktop ? "rounded-xl border border-line bg-white p-5" : "mx-4 rounded-lg border border-line bg-white p-4"} aria-label="Offline library summary">
+                <div className="flex items-start justify-between gap-4">
+                  <div><h2 className="text-lg font-semibold text-deep">Offline Library</h2><p className="mt-1 text-sm text-muted">Materials saved on this device using Group D offline storage.</p></div>
+                  <span className="rounded-full bg-mint px-3 py-1 text-sm font-semibold text-brand-text">{data.offline.downloads.length} saved</span>
+                </div>
+                <Button to="/offline-library" variant="outline" size="sm" className="mt-4">Manage offline materials</Button>
+              </section>
             </div>
 
             {isDesktop && (

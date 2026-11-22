@@ -1,51 +1,33 @@
-# LORIS integration status – implementation pass 1
+# LORIS integrated status
 
-## Consolidated application foundation implemented
+The current integration is based on the main `LORIS-main` application. Group A's role-aware Supabase auth remains the active auth system; Group B's secured upload/material management remains the active organisation-admin system; Group C's end-user library and reader features remain active; Group D's IndexedDB/PWA/offline library is the canonical offline implementation. Nathan's organisation requests are active, while hybrid sessions remain isolated.
 
-- Group D root `src/` selected as the canonical application shell and visual-system source; the nested `loris-frontend` copy was not made a second app.
-- Missing Group D chatbot UI modules (`Composer`, `useChatSession`, `useSpeechInput`, `ChatInterface`) copied from the nested copy into the canonical tree.
-- One Vite entry point and router established.
-- Group A Supabase client and AuthProvider used as the only active authentication provider.
-- Group B, Group C and Nathan source trees retained under `src/modules/` so their existing source is preserved.
-- Group B catalogue, material details, organisation overview, material management, members and upload pages connected to routes.
-- Group C dashboard, favourites, notes/bookmarks, profile, settings, support and reader pages connected to routes; Group C's separate navigation layout is now content-only so the global shell owns navigation.
-- Group D offline library, showcase, PWA and floating assistant retained; only the canonical Group D service-worker registration is called from the application entry point.
-- A single global navigation component added. Its visible tabs derive from `Profiles.platform_role` and active `Memberships.role` values.
-- A live-data Platform Manager dashboard added for organisations and organisation registration requests.
-- Group C favourites, reading progress, notes, bookmarks, highlights, library and profile service paths moved away from their former mock-first/API-stub implementations toward the supplied Supabase tables. End-user support requests now use the additive `support_tickets` table migration.
-- Group C mock mode hard-disabled; its old mock data modules remain in the source tree for historical reference but are not selected by runtime service branches.
-- Atlas user-facing references replaced with LORIS in the consolidated source tree.
-- Group D demo seed helper removed from the runtime/source bundle.
-- Nathan's old `AuthContext` is no longer used; its retained `useAuth` hook adapts to Group A's Supabase session and maps the database roles. Nathan's mock HTTP fallback and mock server were removed.
-- The expressly out-of-scope Nathan pages listed in the user-approved removal list were removed; `ManageUsers`, organisation overview, registration, code entry and the four retained Platform Manager pages remain in the source tree.
 
-## Security hardening included
+## Current integration repairs
 
-- Group B R2 server hardened with Supabase Auth token validation (`/auth/v1/user`), server-side profile and membership checks, allow-listed CORS, per-IP and per-user rate limiting, request limits, MIME/signature validation, organisation-prefixed object keys, protected delete checks and security headers.
-- Group B upload and material-management pages updated to send bearer tokens and organisation IDs, save `uploaded_by` and `organisation_id`, and clean up R2 objects if metadata insertion fails.
-- Additive SQL migration prepared for `materials.organisation_id`, `organisation_requests`, support tickets, permission helpers, profile creation trigger and RLS policies for the supplied tables.
-- Migration has NOT been run. No database records were modified.
+- Admin global navigation no longer exposes separate Materials or Members tabs; the Library Management dashboard still links to both protected pages.
+- Group B's `/manage/table` route is supported. Catalogue cards and Material Details have persistent Favourite controls. Material Details supports image viewing, generic file opening and offline saving.
+- The edit form is isolated to preserve focus while typing, and uses the authenticated organisation-scoped cover upload flow. Archive/delete check affected rows.
+- Group C dashboard bookmark/annotation data and reader save recovery are restored. Reading activity is recorded with a new additive migration.
+- Group C's offline storage is not active. My Library and Dashboard use Group D IndexedDB. The legacy Group C offline route redirects to Group D.
+- Group D's Offline Library opens PDFs/images/audio/video in the browser viewer and EPUBs in a dedicated offline EPUB route.
+- Platform Manager Requests is routed and visible in navigation. Approve/reject uses the existing RPC and attempts applicant notification.
 
-## Still incomplete – do not treat this package as production complete
+## Remaining integration boundaries
 
-1. Nathan's organisation registration and organisation-code pages are retained but are not yet connected to a completed public registration/invitation backend. The provided schema has no invitation-code table; a reviewed migration and backend flow are still needed.
-2. Nathan's four retained Platform Manager pages and `ManageUsers` remain in source but are not yet fully wired into the active router/data layer. The active Platform Manager dashboard is the new direct-Supabase dashboard. The other pages still contain old API-contract assumptions.
-3. Group C's reader still expects a structured `ReaderDocument` endpoint. The current database stores file URLs and metadata but does not store parsed page text; PDF/EPUB parsing and a secure material-file delivery strategy remain unresolved.
-4. Group C offline permissions/synchronisation still references `/api/materials/offline-permission` and `/api/offline/sync`; those endpoints are not implemented in the included R2 server. Group D IndexedDB/PWA foundations remain, but end-to-end offline permission and sync are not verified.
-5. Group C support response threads are not represented in the supplied schema; the added `support_tickets` table stores initial requests/status only. A ticket-replies table/workflow is still needed if threaded support responses must persist.
-6. Full visual redesign of every Group B and Nathan page to Group D's system is not finished. The global shell is in place, but some Group B pages retain their original internal headers, styles and page-level navigation elements.
-7. Organisation ownership migration is nullable by design. Existing materials remain `organisation_id = NULL` until manually verified and backfilled.
-8. The R2 API's in-memory rate limiter is single-process only. Use Redis or an API gateway for multi-instance production deployment.
-9. Supabase Auth project-level rate limits, CAPTCHA, leaked-password protection, MFA and production redirect/origin settings must be configured in the Supabase dashboard.
-10. Private R2 object delivery or short-lived signed URLs are still needed if materials must be restricted. Public R2 URLs are not protected by database RLS.
+- Nathan hybrid sessions are included as a separate service but are not active in the frontend auth flow.
+- Group D's sync queue is not yet wired to Group C annotation/progress writes; those still need an online session.
+- Group C online PDF reading still requires the server's structured reader-document endpoint; the database stores material metadata/file references rather than parsed pages.
+- Offline EPUB is handled locally with epubjs. Other offline formats use browser-native viewers; browser popup policy may affect opening.
+- Organisation registration/invitation backend completeness and support-ticket reply threads are not verified.
 
-## Verification performed
 
-- `node --check server/index.js` passed.
-- The frontend dependency installation timed out in this environment. `node_modules` was not available, so TypeScript and production Vite build could not be run.
-- No Supabase or R2 credentials were present. No live authentication, database, upload, deletion, RLS or offline-sync workflow was tested.
-- SQL migration was inspected as a file only; it was not executed.
+## Verification
 
-## Database migration safety
+- Relative import-path scan: 0 missing paths.
+- Node syntax checks for `server/index.js` and `server/hybrid-sessions/index.js`: passed.
+- TypeScript/build was blocked by missing installed dependencies. `npm ci` timed out and offline installation could not find cached `epubjs`.
+- No live Supabase, R2, email, browser or end-to-end tests were performed.
+- SQL migrations are included but not executed. Review RLS/policies against the current database before applying.
 
-The migration uses additive table/column/function/trigger/policy creation and only drops/recreates the specifically named LORIS policies to make reruns idempotent. It does not drop tables, truncate data or reset the database. Review existing policies and grants before applying because permissive RLS policies combine with OR semantics.
+See `INTEGRATION_AUDIT.md` for group-by-group decisions and details.

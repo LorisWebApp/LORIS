@@ -147,6 +147,44 @@ export function PageText({
     });
   }, [page, onSelect]);
 
+  /**
+   * Prevent copying and cutting text from the reading area.
+   * Text selection remains enabled for highlighting and notes.
+   */
+  const preventCopyOrCut = useCallback(
+    (event: React.ClipboardEvent<HTMLElement>) => {
+      event.preventDefault();
+    },
+    [],
+  );
+
+  /**
+   * Prevent pasting into the reading area.
+   */
+  const preventPaste = useCallback(
+    (event: React.ClipboardEvent<HTMLElement>) => {
+      event.preventDefault();
+    },
+    [],
+  );
+
+  /**
+   * Disable the browser context menu inside the reading area.
+   */
+  const preventContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      event.preventDefault();
+    },
+    [],
+  );
+
+  /**
+   * Prevent dragging text out of the reader.
+   */
+  const preventDrag = useCallback((event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+  }, []);
+
   const theme = READER_THEMES[prefs.reading.theme];
   const highContrast = prefs.accessibility.highContrast;
 
@@ -157,12 +195,20 @@ export function PageText({
     : theme.text;
 
   const safeFontScale =
-    Number.isFinite(fontScale) && fontScale > 0 ? fontScale : 1;
+    Number.isFinite(fontScale) && fontScale > 0
+      ? Math.min(Math.max(fontScale, 0.5), 3)
+      : 1;
 
   return (
     <article
       onMouseUp={handleSelection}
       onKeyUp={handleSelection}
+      onTouchEnd={handleSelection}
+      onCopy={preventCopyOrCut}
+      onCut={preventCopyOrCut}
+      onPaste={preventPaste}
+      onContextMenu={preventContextMenu}
+      onDragStart={preventDrag}
       aria-label={`Page ${page.number}`}
       className={cx(
         "mx-auto w-full px-8 py-12 shadow-[0_2px_16px_rgba(5,32,30,0.08)] sm:px-16",

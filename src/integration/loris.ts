@@ -49,8 +49,13 @@ export function registerReader(opener: ReaderOpener): void { readerOpener = open
 export class ReaderNotConnectedError extends Error {}
 export function isReaderConnected(): boolean { return readerOpener !== null; }
 export function openInReader(request: ReaderRequest): void {
-  if (!readerOpener) throw new ReaderNotConnectedError('The reader route is not connected to Group D offline material yet.');
-  readerOpener(request);
+  if (readerOpener) { readerOpener(request); return; }
+  // Native browser viewers handle PDFs, images, audio and video from the stored blob.
+  // EPUB files may be downloaded by the browser; a dedicated offline EPUB renderer is still pending.
+  const opened = window.open(request.objectUrl, '_blank');
+  if (!opened) throw new ReaderNotConnectedError('The browser blocked the offline viewer. Allow pop-ups for LORIS and try again.');
+  try { opened.opener = null; } catch { /* cross-window restrictions */ }
+  opened.addEventListener('pagehide', () => URL.revokeObjectURL(request.objectUrl), { once: true });
 }
 
 export const INSTITUTION = {

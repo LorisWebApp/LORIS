@@ -40,8 +40,10 @@ export default function OrganisationRequests() {
       supabase.from('organisation_requests').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
       supabase.from('organisation_requests').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
     ]);
+    const countErrors = [pending.error, approved.error, rejected.error].filter(Boolean).map((item) => item!.message);
     if (list.error) setError(list.error.message);
     else setRows((list.data ?? []) as OrganisationRequest[]);
+    if (countErrors.length) setError((current) => [current, ...countErrors].filter(Boolean).join(" | "));
     setCounts({ pending: pending.count ?? 0, approved: approved.count ?? 0, rejected: rejected.count ?? 0 });
     setLoading(false);
   }, [status]);
@@ -58,7 +60,19 @@ export default function OrganisationRequests() {
     });
     setBusyId(null);
     if (reviewError) { setError(`Could not ${verb} request: ${reviewError.message}`); return; }
-    setNotice(`Request ${decision}.`);
+    let emailNote = "";
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const base = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "").trim().replace(/\/+$/, "");
+      const response = await fetch(`${base}/api/notifications/organisation-decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.session?.access_token ?? ""}` },
+        body: JSON.stringify({ requestId: id }),
+      });
+      const body = await response.json().catch(() => ({})) as { sent?: boolean; reason?: string };
+      emailNote = body.sent ? " Applicant notified by email." : ` Email not sent${body.reason ? `: ${body.reason}` : "."}`;
+    } catch { emailNote = " Email notification could not be sent (server unavailable)."; }
+    setNotice(`Request ${decision}.${emailNote}`);
     await load();
   }
 

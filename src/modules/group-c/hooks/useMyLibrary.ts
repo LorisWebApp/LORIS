@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { setFavourite } from "../services/favourites.service";
 import { getLibrary } from "../services/library.service";
-import {
-  listOfflineMeta,
-  metaStatus,
-} from "../services/offline/offlineStorage";
+import { listOfflineMaterials } from "../../../group-d/offline/offlineMaterials";
+import { isAccessValid } from "../../../types/offline";
 import { notesService } from "../services/notes.service";
 import type {
   ActionResult,
@@ -42,7 +40,7 @@ export function useMyLibrary() {
       const [library, notes, offlineMeta] = await Promise.all([
         getLibrary(),
         notesService.list().catch(() => [] as Note[]),
-        listOfflineMeta().catch(() => []),
+        listOfflineMaterials().catch(() => []),
       ]);
 
       setOverview(library);
@@ -54,7 +52,7 @@ export function useMyLibrary() {
       setOfflineIds(
         new Set(
           offlineMeta
-            .filter((meta) => metaStatus(meta) === "ready")
+            .filter((meta) => isAccessValid(meta))
             .map((meta) => meta.id),
         ),
       );

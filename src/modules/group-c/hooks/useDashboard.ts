@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  fetchDashboard,
-  removeOfflineDownload,
-} from "../services/dashboard.service";
+import { fetchDashboard } from "../services/dashboard.service";
 
 import { setFavourite } from "../services/favourites.service";
 
@@ -39,7 +36,6 @@ export function useDashboard() {
   const favouriteRequests = useRef<Set<string>>(new Set());
 
   // Prevent duplicate removal requests.
-  const removalRequests = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const id = ++requestId.current;
@@ -173,78 +169,10 @@ export function useDashboard() {
     [adjustFavouriteCount],
   );
 
-  /** Removes an offline copy without deleting reading activity. */
-  const removeDownload = useCallback(
-    async (downloadId: string): Promise<ActionResult> => {
-      if (state.status !== "ready" || removalRequests.current.has(downloadId)) {
-        return { ok: false };
-      }
-
-      const download = state.data.offline.downloads.find(
-        (item) => item.id === downloadId,
-      );
-
-      if (!download) {
-        return { ok: false };
-      }
-
-      removalRequests.current.add(downloadId);
-
-      try {
-        await removeOfflineDownload(downloadId);
-
-        const materialId = download.material.id;
-
-        patchReady((data) => {
-          const clearOffline = (entry: DashboardData["shelf"][number]) =>
-            entry.material.id === materialId
-              ? {
-                  ...entry,
-                  isOffline: false,
-                }
-              : entry;
-
-          return {
-            ...data,
-
-            offline: {
-              ...data.offline,
-              downloads: data.offline.downloads.filter(
-                (item) => item.id !== downloadId,
-              ),
-            },
-
-            stats: {
-              ...data.stats,
-              offlineReady: Math.max(
-                0,
-                data.stats.offlineReady - (download.status === "ready" ? 1 : 0),
-              ),
-            },
-
-            shelf: data.shelf.map(clearOffline),
-
-            currentlyReading: data.currentlyReading
-              ? clearOffline(data.currentlyReading)
-              : null,
-          };
-        });
-
-        return { ok: true };
-      } catch {
-        return { ok: false };
-      } finally {
-        removalRequests.current.delete(downloadId);
-      }
-    },
-    [state, patchReady],
-  );
-
   return {
     state,
     favouriteIds,
     reload: load,
     toggleFavourite,
-    removeDownload,
   };
 }

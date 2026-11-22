@@ -20,7 +20,7 @@ import Settings from './modules/group-c/pages/user/Settings';
 import Support from './modules/group-c/pages/user/Support';
 import Reader from './modules/group-c/pages/user/Reader';
 import OfflineLibrary from './pages/user/OfflineLibrary';
-import OfflineDownloads from './modules/group-c/pages/user/OfflineLibrary';
+import OfflineEpubReader from './pages/user/OfflineEpubReader';
 import ComponentShowcase from './pages/dev/ComponentShowcase';
 import PlatformDashboard from './pages/platform/PlatformDashboard';
 import OrganisationRequests from './pages/platform/OrganisationRequests';
@@ -50,12 +50,16 @@ export default function App() {
       <Route path="/user/support" element={<RequireRole role="end_user"><Support /></RequireRole>} />
       <Route path="/user/reader/:id" element={<RequireRole role="end_user"><Reader /></RequireRole>} />
       <Route path="/offline-library" element={<RequireRole role="end_user"><OfflineLibrary /></RequireRole>} />
-      <Route path="/offline-library/downloads" element={<RequireRole role="end_user"><OfflineDownloads /></RequireRole>} />
+      <Route path="/offline-library/downloads" element={<RequireRole role="end_user"><Navigate to="/offline-library" replace /></RequireRole>} />
+      <Route path="/offline-reader/:id" element={<RequireRole role="end_user"><OfflineEpubReader /></RequireRole>} />
       <Route path="/manage" element={<RequireRole role="admin"><OrganisationOverview /></RequireRole>} />
       <Route path="/manage/materials" element={<RequireRole role="admin"><ManageMaterials /></RequireRole>} />
+      {/* Group B's updated dashboard links to /manage/table; keep it as a compatible alias. */}
+      <Route path="/manage/table" element={<RequireRole role="admin"><ManageMaterials /></RequireRole>} />
       <Route path="/manage/members" element={<RequireRole role="admin"><Members /></RequireRole>} />
       <Route path="/upload" element={<RequireRole role="admin"><UploadMaterial /></RequireRole>} />
       <Route path="/platform" element={<RequireRole role="platform_manager"><PlatformDashboard /></RequireRole>} />
+      <Route path="/platform/dashboard" element={<RequireRole role="platform_manager"><PlatformDashboard /></RequireRole>} />
       <Route path="/platform/requests" element={<RequireRole role="platform_manager"><OrganisationRequests /></RequireRole>} />
       <Route path="/showcase" element={<ComponentShowcase />} />
     </Route>

@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { BookOpen, Search, PlayCircle, Headphones, Book, FileText, Video, X } from "lucide-react";
 import { supabase } from "../supabase";
 import { useAuth } from "../../group-a/contexts/AuthContext";
+import { FavouriteToggle } from "../../group-c/components/user/FavouriteToggle";
+import { listFavouriteIds, setFavourite } from "../../group-c/services/favourites.service";
 
 export default function Catalogue() {
   const { user } = useAuth();
@@ -14,6 +16,7 @@ export default function Catalogue() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
+  const [favouriteIds, setFavouriteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchMaterials = async () => {
@@ -29,6 +32,26 @@ export default function Catalogue() {
     };
     fetchMaterials();
   }, [user]);
+
+  useEffect(() => {
+    if (!user) { setFavouriteIds(new Set()); return; }
+    let cancelled = false;
+    listFavouriteIds().then((ids) => { if (!cancelled) setFavouriteIds(new Set(ids)); }).catch((error) => { console.warn("Could not load favourites", error); });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const toggleFavourite = async (materialId: string) => {
+    const wasFavourite = favouriteIds.has(materialId);
+    setFavouriteIds((current) => { const next = new Set(current); wasFavourite ? next.delete(materialId) : next.add(materialId); return next; });
+    try {
+      await setFavourite(materialId, !wasFavourite);
+      setToastMessage(wasFavourite ? "Removed from favourites." : "Added to favourites.");
+    } catch (error) {
+      setFavouriteIds((current) => { const next = new Set(current); wasFavourite ? next.add(materialId) : next.delete(materialId); return next; });
+      setToastMessage(error instanceof Error ? error.message : "Could not update favourite.");
+    }
+    window.setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const filtered = materials.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -108,15 +131,12 @@ export default function Catalogue() {
               <h2 className="text-[28px] font-serif text-[#0F172A]">Books & E-books</h2>
               <p className="text-[#64748B] mt-1 text-[14px]">Read text-based materials like PDFs and EPUBs.</p>
             </div>
-            <button 
-              onClick={() => {
-                setToastMessage("This feature is being built by Group C.");
-                setTimeout(() => setToastMessage(null), 3000);
-              }}
-              className="flex items-center gap-2 border border-[#E2E8F0] bg-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition"
+            <Link
+              to={user ? "/user/my-library" : "/login"}
+              className="flex items-center gap-2 border border-[#E2E8F0] bg-white px-4 py-2 rounded-md text-sm font-medium no-underline hover:bg-gray-50 transition"
             >
               <Book size={16} /> My saved resources
-            </button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -125,6 +145,7 @@ export default function Catalogue() {
                 <Link to={`/material/${mat.id}`} key={mat.id} className="group border border-[#E2E8F0] bg-white rounded-lg overflow-hidden hover:shadow-md transition flex flex-col">
                   <div className="h-48 bg-[#F1F5F9] relative overflow-hidden">
                     {mat.image_url ? <img src={mat.image_url} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center"><BookOpen size={40}/></div>}
+                    {user && <FavouriteToggle active={favouriteIds.has(String(mat.id))} materialTitle={mat.title} onToggle={() => void toggleFavourite(String(mat.id))} />}
                     <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
                       {mat.file_type?.includes('epub') ? <><BookOpen size={14} className="text-[#0B7A63]"/> EPUB</> : <><FileText size={14} className="text-red-500"/> PDF</>}
                     </div>
@@ -158,8 +179,9 @@ export default function Catalogue() {
             ) : (
               filtered.filter(m => m.file_type?.includes('audio')).map((mat) => (
                 <Link to={`/material/${mat.id}`} key={mat.id} className="group border border-[#E2E8F0] bg-white rounded-lg p-4 flex gap-4 hover:shadow-md transition items-center">
-                   <div className="h-20 w-20 bg-[#F1F5F9] rounded-md overflow-hidden shrink-0">
+                   <div className="h-20 w-20 bg-[#F1F5F9] rounded-md overflow-hidden shrink-0 relative">
                       {mat.image_url ? <img src={mat.image_url} className="w-full h-full object-cover"/> : <div className="flex h-full items-center justify-center"><Headphones size={24}/></div>}
+                      {user && <FavouriteToggle active={favouriteIds.has(String(mat.id))} materialTitle={mat.title} compact onToggle={() => void toggleFavourite(String(mat.id))} />}
                    </div>
                    <div className="flex-1">
                      <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">AUDIO</span>
@@ -189,6 +211,7 @@ export default function Catalogue() {
                 <Link to={`/material/${mat.id}`} key={mat.id} className="group border border-[#E2E8F0] bg-white rounded-lg overflow-hidden hover:shadow-md transition flex flex-col">
                   <div className="h-48 bg-[#F1F5F9] relative overflow-hidden">
                     {mat.image_url ? <img src={mat.image_url} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center"><Video size={40}/></div>}
+                    {user && <FavouriteToggle active={favouriteIds.has(String(mat.id))} materialTitle={mat.title} onToggle={() => void toggleFavourite(String(mat.id))} />}
                     
                     {/* SLEEK PLAY BUTTON OVERLAY */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition">
@@ -229,6 +252,7 @@ export default function Catalogue() {
                     ) : (
                       <div className="flex h-full items-center justify-center"><FileText size={40}/></div>
                     )}
+                    {user && <FavouriteToggle active={favouriteIds.has(String(mat.id))} materialTitle={mat.title} onToggle={() => void toggleFavourite(String(mat.id))} />}
                     <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">
                       IMAGE
                     </div>
