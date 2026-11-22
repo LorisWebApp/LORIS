@@ -23,6 +23,7 @@ import OfflineLibrary from './pages/user/OfflineLibrary';
 import OfflineDownloads from './modules/group-c/pages/user/OfflineLibrary';
 import ComponentShowcase from './pages/dev/ComponentShowcase';
 import PlatformDashboard from './pages/platform/PlatformDashboard';
+import OrganisationRequests from './pages/platform/OrganisationRequests';
 import { OrganisationRegistration } from './modules/nathan/pages/public/OrganisationRegistration';
 
 export default function App() {
@@ -55,6 +56,7 @@ export default function App() {
       <Route path="/manage/members" element={<RequireRole role="admin"><Members /></RequireRole>} />
       <Route path="/upload" element={<RequireRole role="admin"><UploadMaterial /></RequireRole>} />
       <Route path="/platform" element={<RequireRole role="platform_manager"><PlatformDashboard /></RequireRole>} />
+      <Route path="/platform/requests" element={<RequireRole role="platform_manager"><OrganisationRequests /></RequireRole>} />
       <Route path="/showcase" element={<ComponentShowcase />} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />

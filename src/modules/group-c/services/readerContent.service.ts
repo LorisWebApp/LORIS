@@ -4,14 +4,10 @@
  * Supplies the Reader with a ReaderDocument,
  * either online or from an encrypted offline copy.
  *
- * API CONTRACT:
- * GET /api/materials/:id/reader-document -> ReaderDocument
- *
- * The backend must verify that the authenticated user
- * has permission to access the requested material.
+ * EPUB files are downloaded and parsed by epubContent.service.ts.
+ * Other supported formats continue using the backend reader-document API.
  *
  * Offline documents are stored as encrypted JSON in IndexedDB.
- * PDF and EPUB parsing is not implemented yet.
  */
 
 import type { ReaderDocument } from "../types/reader.types";
@@ -19,6 +15,10 @@ import type { ReaderDocument } from "../types/reader.types";
 import { OfflineAccessError, readOfflineBytes } from "./offline/offlineStorage";
 
 import { apiRequest } from "./userApi";
+
+import { getEpubReaderDocument } from "./epubContent.service";
+
+import { supabase } from "../../../services/supabase";
 
 export interface LoadedDocument {
   doc: ReaderDocument;
@@ -43,7 +43,9 @@ function isNetworkError(error: unknown): boolean {
   return false;
 }
 
-/** Validates the minimum required ReaderDocument structure. */
+/**
+ * Validates the minimum required ReaderDocument structure.
+ */
 function isValidDocument(
   value: unknown,
   materialId: string,
@@ -62,7 +64,9 @@ function isValidDocument(
   );
 }
 
-/** Reads and validates an encrypted offline document. */
+/**
+ * Reads and validates an encrypted offline document.
+ */
 async function fromOffline(materialId: string): Promise<ReaderDocument> {
   const bytes = await readOfflineBytes(materialId);
 
@@ -89,7 +93,48 @@ async function fromOffline(materialId: string): Promise<ReaderDocument> {
   return document;
 }
 
-/** Retrieves a document for the Reader. */
+/**
+ * Retrieves material information needed to identify its format.
+ *
+ * This uses the existing authenticated Supabase session
+ * and does not modify any Group A or Group B files.
+ */
+async function getMaterialDetails(materialId: string): Promise<{
+  title: string;
+  author: string;
+  fileType: string;
+}> {
+  const { data, error } = await supabase
+    .from("materials")
+    .select("title, author, file_type")
+    .eq("id", materialId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("The requested material could not be found.");
+  }
+
+  return {
+    title: data.title ?? "Untitled book",
+    author: data.author ?? "",
+    fileType: String(data.file_type ?? "").toLowerCase(),
+  };
+}
+
+/**
+ * Determines whether a material is an EPUB.
+ */
+function isEpub(fileType: string): boolean {
+  return fileType.includes("epub") || fileType.includes("application/epub");
+}
+
+/**
+ * Retrieves a document for the existing Group C Reader.
+ */
 export async function getReaderDocument(
   materialId: string,
 ): Promise<LoadedDocument> {
@@ -104,9 +149,24 @@ export async function getReaderDocument(
   // ONLINE
   if (isOnline) {
     try {
-      const document = await apiRequest<ReaderDocument>(
-        `/materials/${encodeURIComponent(id)}/reader-document`,
-      );
+      // First identify the material's format.
+      const material = await getMaterialDetails(id);
+
+      let document: ReaderDocument;
+
+      if (isEpub(material.fileType)) {
+        // Download and parse the EPUB file.
+        document = await getEpubReaderDocument(
+          id,
+          material.title,
+          material.author,
+        );
+      } else {
+        // Other formats continue using the existing backend API.
+        document = await apiRequest<ReaderDocument>(
+          `/materials/${encodeURIComponent(id)}/reader-document`,
+        );
+      }
 
       if (!isValidDocument(document, id)) {
         throw new Error("The server returned an invalid reading document.");
