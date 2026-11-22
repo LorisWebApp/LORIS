@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import { OfflineActionsProvider } from "../components/user/OfflineActionsContext";
 import { UserLayout } from "../components/user/UserLayout";
 import { USER_ROUTES } from "../config/userRoutes";
 
@@ -22,7 +23,14 @@ export default function UserRoutes() {
       />
 
       {/* Reader uses its own full-screen layout. */}
-      <Route path="/user/reader/:id" element={<Reader />} />
+      <Route
+        path="/user/reader/:id"
+        element={
+          <OfflineActionsProvider>
+            <Reader />
+          </OfflineActionsProvider>
+        }
+      />
 
       {/* Shared navigation layout for the other Group C pages. */}
       <Route path="/user" element={<UserLayout />}>

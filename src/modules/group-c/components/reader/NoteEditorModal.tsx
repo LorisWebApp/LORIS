@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TextAreaField } from "../user/FormFields";
 import { Button, Modal } from "../user/sharedUi";
 
@@ -34,11 +34,19 @@ export function NoteEditorModal({
     }
   }, [open, initialText]);
 
-  const handleClose = () => {
-    if (!saving) {
-      onClose();
+  // Keep these in refs so handleClose keeps the same identity between renders.
+  // The shared Modal re-runs its focus effect whenever onClose changes, which
+  // would pull focus out of the textarea after every typed character.
+  const onCloseRef = useRef(onClose);
+  const savingRef = useRef(saving);
+  onCloseRef.current = onClose;
+  savingRef.current = saving;
+
+  const handleClose = useCallback(() => {
+    if (!savingRef.current) {
+      onCloseRef.current();
     }
-  };
+  }, []);
 
   const submit = async () => {
     const value = text.trim();

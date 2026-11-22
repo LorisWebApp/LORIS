@@ -16,7 +16,7 @@
 import type { LibraryMaterial } from "../../types/userLibrary.types";
 
 import { clearUserCaches } from "../userCrud";
-import { apiRequest, getAccessToken } from "../userApi";
+import { API_BASE_URL, apiRequest, getAccessToken } from "../userApi";
 
 import {
   decryptBytes,
@@ -159,7 +159,18 @@ export async function downloadMaterial(
 
     // The file endpoint is authenticated; the grant URL alone is not enough.
     const accessToken = await getAccessToken();
-    const response = await fetch(grant.url, {
+    // The server builds grant.url from its own host/protocol, which is wrong
+    // behind a proxy or HTTPS (blocked as a network error). Keep only the path
+    // and resolve it against the API base this app is configured with.
+    const grantPath = (() => {
+      try {
+        return new URL(grant.url, window.location.origin).pathname.replace(/^\/api(?=\/)/, "");
+      } catch {
+        return `/materials/${encodeURIComponent(material.id)}/file`;
+      }
+    })();
+
+    const response = await fetch(`${API_BASE_URL}${grantPath}`, {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
 
