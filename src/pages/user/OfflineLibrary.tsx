@@ -27,12 +27,7 @@ export default function OfflineLibrary() {
   const onOpen = useCallback(async (id: string) => {
     const item = lib.items.find((material) => material.id === id);
     const epub = item && (item.mimeType.toLowerCase().includes("epub") || item.fileName.toLowerCase().endsWith(".epub"));
-    if (epub) { navigate(`/offline-reader/${encodeURIComponent(id)}`); return; }
-    // Open a blank tab synchronously from the click so browsers allow navigation
-    // after the asynchronous IndexedDB read.
-    const popup = window.open("about:blank", "_blank");
-    if (!popup) { fail(new Error("The browser blocked the offline viewer. Allow pop-ups for LORIS and try again.")); return; }
-    try { await lib.open(id, popup); } catch (e) { popup.close(); fail(e); }
+    navigate(epub ? `/offline-reader/${encodeURIComponent(id)}` : `/offline-viewer/${encodeURIComponent(id)}`);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lib.items, lib.open, navigate]);
 

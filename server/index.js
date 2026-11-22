@@ -526,6 +526,8 @@ app.get(
       res.setHeader('Content-Type', result.ContentType || material.file_type || 'application/octet-stream');
       if (result.ContentLength != null) res.setHeader('Content-Length', String(result.ContentLength));
       res.setHeader('Cache-Control', 'private, no-store');
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       result.Body.on('error', () => res.destroy());
       result.Body.pipe(res);
     } catch (error) {

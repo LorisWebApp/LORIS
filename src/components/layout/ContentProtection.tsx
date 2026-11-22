@@ -28,10 +28,14 @@ export function ContentProtection() {
     };
     const events = ['copy', 'cut', 'contextmenu', 'dragstart'] as const;
     events.forEach((n) => document.addEventListener(n, block));
+    const style = document.createElement('style');
+    style.textContent = '@media print{body{display:none!important}} img,canvas,video,audio{-webkit-touch-callout:none;-webkit-user-drag:none}';
+    document.head.appendChild(style);
     document.addEventListener('keydown', onKey);
     document.addEventListener('keyup', onKey);
     return () => {
       events.forEach((n) => document.removeEventListener(n, block));
+      style.remove();
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('keyup', onKey);
     };

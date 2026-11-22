@@ -247,8 +247,8 @@ export default function Catalogue() {
               filtered.filter(m => m.file_type?.includes('image')).map((mat) => (
                 <Link to={`/material/${mat.id}`} key={mat.id} className="group border border-[#E2E8F0] bg-white rounded-lg overflow-hidden hover:shadow-md transition flex flex-col">
                   <div className="h-48 bg-[#F1F5F9] relative overflow-hidden">
-                    {(mat.image_url || mat.file_url) ? (
-                      <img src={mat.image_url || mat.file_url} className="w-full h-full object-cover" />
+                    {mat.image_url ? (
+                      <img src={mat.image_url} className="w-full h-full object-cover" />
                     ) : (
                       <div className="flex h-full items-center justify-center"><FileText size={40}/></div>
                     )}

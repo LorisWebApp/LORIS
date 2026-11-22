@@ -8,6 +8,8 @@ import { FavouriteToggle } from "../../group-c/components/user/FavouriteToggle";
 import { listFavouriteIds, setFavourite } from "../../group-c/services/favourites.service";
 import { saveMaterialForOffline } from "../../../group-d/offline/offlineMaterials";
 import { getAccessToken } from "../../../integration/loris";
+import { useProtectedFile } from "../../../hooks/useProtectedFile";
+import { ProtectedMedia, ProtectedPdfViewer } from "../../../components/reader/ProtectedViewer";
 
 export default function MaterialDetails() {
   const { id } = useParams();
@@ -19,6 +21,7 @@ export default function MaterialDetails() {
   const [isFavourite, setIsFavourite] = useState(false);
   const [toast, setToast] = useState<{message: string; variant: "success" | "error"} | null>(null);
   const [savingOffline, setSavingOffline] = useState(false);
+  const protectedFile = useProtectedFile(id, Boolean(user && isReading));
 
   useEffect(() => {
     // Guests read the public preview view (description only, no file link).
@@ -232,11 +235,6 @@ export default function MaterialDetails() {
             {isImage && <Button onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16} />}>View Image</Button>}
             {user && !isOrgAdmin && !isPlatformManager && <Button variant="outline" onClick={() => void saveOffline()} loading={savingOffline} leftIcon={<CloudDownload size={16} />}>Save offline</Button>}
 
-            {!isPDF && !isEPUB && !isAudio && !isVideo && !isImage && (
-              <Button onClick={() => window.open(material.file_url, "_blank", "noopener,noreferrer")} leftIcon={<BookOpen size={16} />}>
-                Download / Open File
-              </Button>
-            )}
           </div>
         </div>
       </main>
@@ -263,53 +261,24 @@ export default function MaterialDetails() {
               </button>
             </div>
 
-            {/* Modal Body */}
-            {isAudio ? (
-              <div className="p-8 flex flex-col items-center justify-center bg-mint-soft">
-                {material.image_url && (
-                  <img
-                    src={material.image_url}
-                    alt={material.title}
-                    className="h-48 w-48 object-cover rounded-lg shadow-lg mb-8"
-                  />
-                )}
-
-                <audio
-                  controls
-                  controlsList="nodownload noplaybackrate"
-                  onContextMenu={(e) => e.preventDefault()}
-                  autoPlay
-                  className="w-full"
-                >
-                  <source src={material.file_url} type="audio/mpeg" />
-                  Your browser does not support the audio element.
-                </audio>
-              </div>
-            ) : isVideo ? (
-              <div className="w-full bg-black flex items-center justify-center">
-                <video
-                  controls
-                  controlsList="nodownload noremoteplayback"
-                  disablePictureInPicture
-                  onContextMenu={(e) => e.preventDefault()}
-                  autoPlay
-                  playsInline
-                  className="w-full max-h-[80vh] object-contain bg-black"
-                  src={material.file_url}
-                >
-                  Your browser does not support the video tag.
-                </video>
-              </div>
-            ) : isImage ? (
-              <div className="w-full flex-1 bg-black flex items-center justify-center p-4 overflow-auto">
-                <img src={material.file_url} alt={material.title} className="max-h-full max-w-full object-contain" />
-              </div>
-            ) : (
-              <iframe
-                src={`${material.file_url}#toolbar=0&navpanes=0&scrollbar=1`}
-                className="w-full flex-1 border-0"
-                title={material.title}
-              />
+            {/* Modal Body: content comes from the authenticated API and is shown only by LORIS viewers */}
+            {protectedFile.loading && <p className="p-8 text-center text-muted">Loading…</p>}
+            {protectedFile.error && <p role="alert" className="p-8 text-center text-rose-text">{protectedFile.error}</p>}
+            {protectedFile.blob && (
+              isAudio ? (
+                <div className="p-8 flex flex-col items-center justify-center bg-mint-soft">
+                  {material.image_url && <img src={material.image_url} alt={material.title} draggable={false} className="h-48 w-48 object-cover rounded-lg shadow-lg mb-8" />}
+                  <ProtectedMedia kind="audio" blob={protectedFile.blob} title={material.title} />
+                </div>
+              ) : isVideo ? (
+                <div className="w-full bg-black flex items-center justify-center"><ProtectedMedia kind="video" blob={protectedFile.blob} title={material.title} /></div>
+              ) : isImage ? (
+                <div className="w-full flex-1 bg-black flex items-center justify-center p-4 overflow-auto"><ProtectedMedia kind="image" blob={protectedFile.blob} title={material.title} /></div>
+              ) : isPDF ? (
+                <div className="flex-1 min-h-0"><ProtectedPdfViewer blob={protectedFile.blob} /></div>
+              ) : (
+                <p className="p-8 text-center text-muted">This file type cannot be displayed in LORIS.</p>
+              )
             )}
           </div>
         </div>

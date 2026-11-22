@@ -21,6 +21,7 @@ import Support from './modules/group-c/pages/user/Support';
 import Reader from './modules/group-c/pages/user/Reader';
 import OfflineLibrary from './pages/user/OfflineLibrary';
 import OfflineEpubReader from './pages/user/OfflineEpubReader';
+import OfflineViewer from './pages/user/OfflineViewer';
 import ComponentShowcase from './pages/dev/ComponentShowcase';
 import PlatformDashboard from './pages/platform/PlatformDashboard';
 import OrganisationRequests from './pages/platform/OrganisationRequests';
@@ -51,6 +52,7 @@ export default function App() {
       <Route path="/user/reader/:id" element={<RequireRole role="end_user"><Reader /></RequireRole>} />
       <Route path="/offline-library" element={<RequireRole role="end_user"><OfflineLibrary /></RequireRole>} />
       <Route path="/offline-library/downloads" element={<RequireRole role="end_user"><Navigate to="/offline-library" replace /></RequireRole>} />
+      <Route path="/offline-viewer/:id" element={<RequireRole role="end_user"><OfflineViewer /></RequireRole>} />
       <Route path="/offline-reader/:id" element={<RequireRole role="end_user"><OfflineEpubReader /></RequireRole>} />
       <Route path="/manage" element={<RequireRole role="admin"><OrganisationOverview /></RequireRole>} />
       <Route path="/manage/materials" element={<RequireRole role="admin"><ManageMaterials /></RequireRole>} />

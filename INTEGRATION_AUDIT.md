@@ -80,3 +80,27 @@ npm run dev
 ```
 
 For the Express service, install and run from `server/` using its package scripts. Keep secrets in local environment files and do not commit them. Review/apply the database migrations separately; they are not executed by the application.
+
+---
+# Addendum: Copyright protection & restricted material access (this pass)
+
+Verification level: `tsc -b` and `vite build` pass (run in this pass). No browser, Supabase, R2 or device testing was performed; everything below marked "static" was inspected/compiled only.
+
+| Area | Change | Status |
+|---|---|---|
+| Online PDF viewing | Replaced native `<iframe src=file_url#toolbar=0>` (toolbar flag is advisory) with canvas-rendered `ProtectedPdfViewer` (pdfjs-dist 4.10.38): no text layer, no native download/print/save UI | Static |
+| Online audio/video/image | Now fetched via authenticated `GET /api/materials/:id/file` (bearer token) into a blob; `controlsList=nodownload`, context menu/drag blocked | Static |
+| "Download / Open File" button | Removed from Material Details (opened the raw public storage URL) | Static |
+| Offline PDF/media | `/offline-viewer/:id` (new) renders from IndexedDB via the same controlled viewer; no more blob URL opened in a native tab. EPUB keeps `/offline-reader/:id` | Static |
+| `openInReader` fallback | Native-viewer fallback removed | Static |
+| Catalogue cover | No longer falls back to the original `file_url` as image | Static |
+| File endpoint headers | Added `Content-Disposition: inline`, `X-Content-Type-Options: nosniff` (already `private, no-store`, authenticated, RLS-checked) | Static |
+| Global deterrents | Existing `ContentProtection` (copy/cut/contextmenu/dragstart/Ctrl+P/S/U) retained; added print-hiding CSS and touch-callout/drag CSS for media. Selection stays enabled so Group C highlights/notes (`PageText`, which also blocks copy/cut/drag/context menu) keep working | Static |
+
+## Known limitations (must be addressed outside this code pass)
+1. **Public storage URLs still exist.** `materials.file_url` stores the public R2 URL (`URL_PDF`, etc.) and authenticated clients can still read that column. Frontend no longer uses it for viewing, but anyone with the URL can fetch the file. Real enforcement requires making the R2 buckets private (disable public access/custom domain) and relying only on `/api/materials/:id/file`, plus restricting the `file_url` column from client SELECT. This is an infrastructure change and was NOT performed. Admin pages (ManageMaterials) and the upload response still use these URLs.
+2. Online EPUB reader (Group C `EpubReader`/`PageText`) was not re-audited in this pass beyond confirming copy/cut/drag/contextmenu handlers exist in `PageText`; the structured online PDF endpoint noted in INTEGRATION_HANDOFF.md is still absent, so PDFs are shown by the new viewer from MaterialDetails rather than the Group C Reader.
+3. The new PDF viewer has no highlights/notes/bookmarks (those remain EPUB/text-reader features).
+4. Screenshots, screen recording, devtools network inspection and memory extraction cannot be prevented; the blob is in browser memory while viewing. This is deterrence, not DRM.
+5. Large PDFs/videos are fully downloaded into memory before display (no range streaming).
+6. Not tested: mobile long-press/touch behaviour, Ctrl+C/right-click behaviour in real browsers, offline open of PDFs end-to-end.
