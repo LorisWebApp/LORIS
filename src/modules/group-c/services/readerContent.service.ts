@@ -9,6 +9,7 @@
 import type { ReaderDocument } from "../types/reader.types";
 import { apiRequest } from "./userApi";
 import { getEpubReaderDocument } from "./epubContent.service";
+import { getPdfReaderDocument } from "./pdfContent.service";
 import { supabase } from "../../../services/supabase";
 
 
@@ -48,7 +49,9 @@ export async function getReaderDocument(materialId: string): Promise<LoadedDocum
   const material = await getMaterialDetails(id);
   const document = isEpub(material.fileType)
     ? await getEpubReaderDocument(id, material.title, material.author)
-    : await apiRequest<ReaderDocument>(`/materials/${encodeURIComponent(id)}/reader-document`);
+    : material.fileType.includes("pdf")
+      ? await getPdfReaderDocument(id, material.title, material.author)
+      : await apiRequest<ReaderDocument>(`/materials/${encodeURIComponent(id)}/reader-document`);
 
   if (!isValidDocument(document, id)) throw new Error("The server returned an invalid reading document.");
   return { doc: document, source: "online" };

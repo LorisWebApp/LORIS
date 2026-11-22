@@ -198,12 +198,10 @@ export default function MaterialDetails() {
 
           <div className={`mt-8 flex flex-wrap gap-4 ${user ? "" : "hidden"}`}>
             {isPDF && (
-              <Button
-                onClick={() => setIsReading(true)}
-                leftIcon={<BookOpen size={16} />}
-              >
-                Read Document
-              </Button>
+              <>
+                <Button onClick={openEpubReader} leftIcon={<BookOpen size={16} />}>Read Document</Button>
+                <Button variant="outline" onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16} />}>View pages</Button>
+              </>
             )}
 
             {isEPUB && (

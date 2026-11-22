@@ -24,6 +24,7 @@ import OfflineEpubReader from './pages/user/OfflineEpubReader';
 import OfflineViewer from './pages/user/OfflineViewer';
 import ComponentShowcase from './pages/dev/ComponentShowcase';
 import PlatformDashboard from './pages/platform/PlatformDashboard';
+import PlatformOrganisations from './pages/platform/PlatformOrganisations';
 import OrganisationRequests from './pages/platform/OrganisationRequests';
 import { OrganisationRegistration } from './modules/nathan/pages/public/OrganisationRegistration';
 
@@ -62,6 +63,7 @@ export default function App() {
       <Route path="/upload" element={<RequireRole role="admin"><UploadMaterial /></RequireRole>} />
       <Route path="/platform" element={<RequireRole role="platform_manager"><PlatformDashboard /></RequireRole>} />
       <Route path="/platform/dashboard" element={<RequireRole role="platform_manager"><PlatformDashboard /></RequireRole>} />
+      <Route path="/platform/organisations" element={<RequireRole role="platform_manager"><PlatformOrganisations /></RequireRole>} />
       <Route path="/platform/requests" element={<RequireRole role="platform_manager"><OrganisationRequests /></RequireRole>} />
       <Route path="/showcase" element={<ComponentShowcase />} />
     </Route>

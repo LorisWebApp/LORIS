@@ -1,72 +1,293 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Building2, ClipboardList, Users } from 'lucide-react';
-import { supabase } from '../../services/supabase';
+import { Building2, Users, Activity, ArrowUpRight, Clock, ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-type Organisation = Record<string, unknown> & { id: number };
-type RequestRow = Record<string, unknown> & { id: string; status: string };
+import { useEffect, useState } from 'react'
+import { useAuth } from '../../modules/group-a/contexts/AuthContext'
+import { supabase } from '../../services/supabase'
 
-export default function PlatformDashboard() {
-  const [organisations, setOrganisations] = useState<Organisation[]>([]);
-  const [requests, setRequests] = useState<RequestRow[]>([]);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [pendingTotal, setPendingTotal] = useState(0);
-  const [requestTotal, setRequestTotal] = useState(0);
-  const [orgTotal, setOrgTotal] = useState(0);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [notice, setNotice] = useState('');
-
-  const load = useCallback(async () => {
-    const [orgResult, requestResult, pendingResult] = await Promise.all([
-      supabase.from('Organisation').select('*', { count: 'exact' }).order('id', { ascending: false }).limit(50),
-      supabase.from('organisation_requests').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(25),
-      supabase.from('organisation_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    ]);
-    const problems: string[] = [];
-    if (orgResult.error) problems.push(`Organisation records: ${orgResult.error.message}`);
-    else { setOrganisations((orgResult.data ?? []) as Organisation[]); setOrgTotal(orgResult.count ?? 0); }
-    if (requestResult.error) problems.push(`Registration requests: ${requestResult.error.message}`);
-    else { setRequests((requestResult.data ?? []) as RequestRow[]); setRequestTotal(requestResult.count ?? 0); }
-    if (!pendingResult.error) setPendingTotal(pendingResult.count ?? 0);
-    setError(problems.join(' | '));
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
-
-  async function review(id: string, decision: 'approved' | 'rejected') {
-    const label = decision === 'approved' ? 'approve' : 'reject';
-    if (!window.confirm(`Are you sure you want to ${label} this organisation request?`)) return;
-    setBusyId(id); setNotice(''); setError('');
-    const { error: rpcError } = await supabase.rpc('loris_review_organisation_request', { p_request_id: id, p_decision: decision, p_notes: null });
-    setBusyId(null);
-    if (rpcError) { setError(`Could not ${label} the request: ${rpcError.message}`); return; }
-    // Tell the applicant. The decision is already saved, so an email problem is reported, not fatal.
-    let emailNote = '';
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const base = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, '');
-      const res = await fetch(`${base}/api/notifications/organisation-decision`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sess.session?.access_token ?? ''}` },
-        body: JSON.stringify({ requestId: id }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { sent?: boolean; reason?: string };
-      emailNote = body.sent ? ' The applicant has been emailed.' : ` The email was not sent${body.reason ? `: ${body.reason}` : '.'}`;
-    } catch {
-      emailNote = ' The email could not be sent (server unreachable).';
-    }
-    setNotice(`Request ${decision}.${emailNote}`);
-    await load();
-  }
-  return <div className="mx-auto max-w-[1500px] space-y-8 p-6 lg:p-10">
-    <header><p className="text-sm font-semibold uppercase tracking-[.16em] text-brand">Platform management</p><h1 className="mt-2 text-4xl font-semibold text-deep">Platform dashboard</h1><p className="mt-2 text-muted">A live overview of LORIS organisations and registration requests.</p></header>
-    {error && <div role="alert" className="rounded-lg border border-rose-text/30 bg-rose-bg p-4 text-rose-text">{error}<p className="mt-1 text-sm">If a table or function is missing, review and apply the additive migrations in database/migrations first.</p></div>}
-    {notice && <div role="status" className="rounded-lg border border-line bg-mint-soft p-4 text-brand-text">{notice}</div>}
-    <section className="grid gap-4 md:grid-cols-3">
-      {[{label:'Organisations',value:orgTotal,Icon:Building2},{label:'Registration requests',value:requestTotal,Icon:ClipboardList},{label:'Pending review',value:pendingTotal,Icon:Users}].map(({label,value,Icon})=><article key={label} className="rounded-xl border border-line bg-white p-6"><Icon className="text-brand"/><p className="mt-4 text-sm text-muted">{label}</p><p className="mt-1 text-3xl font-semibold">{loading?'—':value}</p></article>)}
-    </section>
-    <section className="overflow-hidden rounded-xl border border-line bg-white"><div className="border-b border-line p-5"><h2 className="text-xl font-semibold">Recent organisation registrations</h2></div>{loading?<p className="p-6 text-muted">Loading…</p>:requests.length===0?<p className="p-6 text-muted">No registration requests found. If the requests table has not been created yet, apply the reviewed migration first.</p>:<div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-mint-soft text-brand-text"><tr><th className="p-4">Organisation</th><th className="p-4">Email</th><th className="p-4">Status</th><th className="p-4">Submitted</th><th className="p-4">Action</th></tr></thead><tbody>{requests.map((r)=><tr key={r.id} className="border-t border-line"><td className="p-4">{String(r.organisation_name??'—')}</td><td className="p-4">{String(r.email??'—')}</td><td className="p-4 capitalize">{r.status}</td><td className="p-4">{String(r.created_at??'—')}</td><td className="p-4">{r.status==='pending'?<span className="flex gap-2"><button disabled={busyId===r.id} onClick={()=>void review(r.id,'approved')} className="rounded-lg bg-ink px-3 py-1.5 text-white disabled:opacity-50">Approve</button><button disabled={busyId===r.id} onClick={()=>void review(r.id,'rejected')} className="rounded-lg border border-line px-3 py-1.5 disabled:opacity-50">Reject</button></span>:<span className="text-muted">—</span>}</td></tr>)}</tbody></table></div>}</section>
-    <section className="overflow-hidden rounded-xl border border-line bg-white"><div className="border-b border-line p-5"><h2 className="text-xl font-semibold">Organisations</h2></div>{loading?<p className="p-6 text-muted">Loading…</p>:organisations.length===0?<p className="p-6 text-muted">No organisations have been approved yet.</p>:<div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-mint-soft text-brand-text"><tr><th className="p-4">Name</th><th className="p-4">Type</th><th className="p-4">Email</th><th className="p-4">Location</th></tr></thead><tbody>{organisations.map((o)=><tr key={o.id} className="border-t border-line"><td className="p-4">{String(o['organisation name']??'—')}</td><td className="p-4">{String(o.type??'—')}</td><td className="p-4">{String(o.email??'—')}</td><td className="p-4">{[o['city/town'],o['province/state'],o.country].filter(Boolean).map(String).join(', ')||'—'}</td></tr>)}</tbody></table></div>}</section>
-  </div>;
+interface DashboardStats {
+  organisations: number
+  users: number
+  pending_requests: number
 }
+
+function PlatformDashboard() {
+  const { profile, loading: authLoading } = useAuth()
+  const navigate = useNavigate()
+
+  const managerName = profile?.full_name?.trim() || 'Platform Manager'
+
+  // Dashboard statistics
+  const [organisationCount, setOrganisationCount] = useState<number | null>(null)
+  const [userCount, setUserCount] = useState<number | null>(null)
+  const [pendingRequestCount, setPendingRequestCount] = useState<number | null>(null)
+
+  const [loadingStats, setLoadingStats] = useState(true)
+  const [statsError, setStatsError] = useState<string | null>(null)
+
+  // Fetch dashboard statistics after authentication has finished loading
+  useEffect(() => {
+    if (authLoading) return
+
+    const fetchDashboardStats = async () => {
+      setLoadingStats(true)
+      setStatsError(null)
+
+      try {
+        // Check the current authenticated session
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession()
+        
+        if (sessionError) {
+          throw sessionError
+        }
+
+        const session = sessionData.session
+
+        if (!session) {
+          throw new Error('No authenticated session found.')
+        }
+
+        // Fetch statistics from the secure Supabase function
+        const { data, error } = await supabase.rpc(
+          'get_platform_dashboard_stats'
+        )
+
+        if (error) {
+          throw error
+        }
+
+        const stats = data as DashboardStats
+
+        setOrganisationCount(stats.organisations)
+        setUserCount(stats.users)
+        setPendingRequestCount(stats.pending_requests)
+
+      } catch (error) {
+        console.error('Error fetching dashboard statistics:', error)
+        setStatsError('Unable to load dashboard statistics.')
+      } finally {
+        setLoadingStats(false)
+      }
+    }
+
+    fetchDashboardStats()
+  }, [authLoading])
+
+  // Display statistic values
+  const displayCount = (count: number | null) => {
+    if (authLoading || loadingStats) return '...'
+    return count?.toLocaleString() ?? '--'
+  }
+
+  return (
+    <div className="min-h-[calc(100vh-73px)] bg-[#082F2A] text-white">
+
+      {/* Main Dashboard */}
+      <main className="max-w-7xl mx-auto px-6 sm:px-8 py-10">
+
+        {/* Welcome Section */}
+        <section className="mb-10">
+          <p className="text-[#A8E6D4] uppercase tracking-[0.2em] text-sm font-semibold mb-3">
+            Platform Administration
+          </p>
+
+          <h1 className="text-4xl font-serif font-medium tracking-tight">
+            Welcome back, {managerName}.
+          </h1>
+
+          <p className="text-gray-300 text-lg sm:text-xl mt-5 max-w-3xl leading-relaxed">
+            Here's an overview of the LORIS platform. Monitor organisations, users,
+            registration requests, and platform activity from one place.
+          </p>
+        </section>
+
+        {/* Summary Cards */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mb-10">
+
+          {/* Organisations */}
+          <div className="bg-[#123F38] border border-[#315C53] rounded-2xl p-6 hover:border-[#A8E6D4] transition-colors">
+            <div className="flex items-start justify-between">
+              <p className="text-[#B5CFC8] text-sm font-semibold uppercase tracking-wide">
+                Registered Organisations
+              </p>
+
+              <div className="p-3 bg-[#1D5045] rounded-xl">
+                <Building2 size={22} className="text-[#A8E6D4]" />
+              </div>
+            </div>
+
+            <h2 className="text-4xl font-serif mt-5">
+              {displayCount(organisationCount)}
+            </h2>
+
+            <p className="text-[#A8E6D4] mt-2 text-sm">
+              Organisations on LORIS
+            </p>
+          </div>
+
+          {/* Users */}
+          <div className="bg-[#123F38] border border-[#315C53] rounded-2xl p-6 hover:border-[#A8E6D4] transition-colors">
+            <div className="flex items-start justify-between">
+              <p className="text-[#B5CFC8] text-sm font-semibold uppercase tracking-wide">
+                Total Users
+              </p>
+
+              <div className="p-3 bg-[#1D5045] rounded-xl">
+                <Users size={22} className="text-[#A8E6D4]" />
+              </div>
+            </div>
+
+            <h2 className="text-4xl font-serif mt-5">
+              {displayCount(userCount)}
+            </h2>
+
+            <p className="text-[#A8E6D4] mt-2 text-sm">
+              Registered platform users
+            </p>
+          </div>
+
+          {/* Pending Requests */}
+          <div className="bg-[#123F38] border border-[#315C53] rounded-2xl p-6 hover:border-[#F6C98B] transition-colors">
+            <div className="flex items-start justify-between">
+              <p className="text-[#B5CFC8] text-sm font-semibold uppercase tracking-wide">
+                Pending Requests
+              </p>
+
+              <div className="p-3 bg-[#50432D] rounded-xl">
+                <Clock size={22} className="text-[#F6C98B]" />
+              </div>
+            </div>
+
+            <h2 className="text-4xl font-serif mt-5">
+              {displayCount(pendingRequestCount)}
+            </h2>
+
+            <p className="text-[#F6C98B] mt-2 text-sm">
+              Awaiting review
+            </p>
+          </div>
+
+        </section>
+
+        {/* Error Message */}
+        {statsError && (
+          <div className="mb-8 bg-red-900/30 border border-red-500/40 rounded-xl p-4 text-red-200">
+            {statsError}
+          </div>
+        )}
+
+        {/* Lower Dashboard Sections */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Platform Overview */}
+          <div className="lg:col-span-2 bg-[#123F38] border border-[#315C53] rounded-2xl p-7">
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-[#1D5045] rounded-xl">
+                <ShieldCheck size={24} className="text-[#A8E6D4]" />
+              </div>
+
+              <div>
+                <h2 className="text-xl font-semibold">Platform Overview</h2>
+                <p className="text-[#B5CFC8] text-sm">
+                  General platform information
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              <div className="bg-[#0B342E] rounded-xl p-5">
+                <p className="text-[#B5CFC8] text-sm">
+                  Platform Name
+                </p>
+
+                <p className="text-xl font-semibold mt-2">
+                  LORIS
+                </p>
+              </div>
+
+              <div className="bg-[#0B342E] rounded-xl p-5">
+                <p className="text-[#B5CFC8] text-sm">
+                  System Status
+                </p>
+
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="w-2.5 h-2.5 bg-[#75D6AC] rounded-full"></span>
+
+                  <p className="text-xl font-semibold">
+                    Operational
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#0B342E] rounded-xl p-5">
+                <p className="text-[#B5CFC8] text-sm">
+                  Platform Administrator
+                </p>
+
+                <p className="text-lg font-semibold mt-2">
+                  {managerName}
+                </p>
+              </div>
+
+              <div className="bg-[#0B342E] rounded-xl p-5">
+                <p className="text-[#B5CFC8] text-sm">
+                  Platform Access
+                </p>
+
+                <p className="text-lg font-semibold mt-2">
+                  Administrator
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-[#123F38] border border-[#315C53] rounded-2xl p-7">
+
+            <h2 className="text-xl font-semibold mb-2">
+              Quick Actions
+            </h2>
+
+            <p className="text-[#B5CFC8] text-sm mb-6">
+              Common platform management tasks
+            </p>
+
+            <div className="space-y-3">
+
+              <button type="button" onClick={() => navigate('/platform/organisations')} className="w-full flex items-center justify-between bg-[#0B342E] hover:bg-[#1D5045] rounded-xl p-4 transition-colors text-left">
+                <div className="flex items-center gap-3">
+                  <Building2 size={20} className="text-[#A8E6D4]" />
+
+                  <span>Manage Organisations</span>
+                </div>
+
+                <ArrowUpRight size={18} className="text-[#B5CFC8]" />
+              </button>
+
+              <button type="button" onClick={() => navigate('/platform/requests')} className="w-full flex items-center justify-between bg-[#0B342E] hover:bg-[#1D5045] rounded-xl p-4 transition-colors text-left">
+                <div className="flex items-center gap-3">
+                  <Activity size={20} className="text-[#F6C98B]" />
+
+                  <span>Review Requests</span>
+                </div>
+
+                <ArrowUpRight size={18} className="text-[#B5CFC8]" />
+              </button>
+
+            </div>
+
+          </div>
+
+        </section>
+
+      </main>
+
+    </div>
+  )
+}
+
+export default PlatformDashboard
