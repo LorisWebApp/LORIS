@@ -4,7 +4,7 @@ import {
   PageHeader, DataTable, Button, StatusBadge, 
   ConfirmationDialog, ToastNotification, SearchBar, Modal
 } from "../shared";
-import { FileText, Video, Headphones, Image as ImageIcon } from "lucide-react";
+import { FileText, Video, Headphones, Image as ImageIcon, } from "lucide-react";
 
 export default function ManageMaterials() {
   const [materials, setMaterials] = useState<any[]>([]);
@@ -14,6 +14,7 @@ export default function ManageMaterials() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [archiveId, setArchiveId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Edit States
   const [editingMaterial, setEditingMaterial] = useState<any>(null);
@@ -22,6 +23,8 @@ export default function ManageMaterials() {
   const [editDescription, setEditDescription] = useState("");
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
 
   const fetchMaterials = async () => {
     const { data } = await supabase.from("materials").select("*").order("created_at", { ascending: false });
@@ -42,20 +45,27 @@ export default function ManageMaterials() {
 
   const confirmDelete = async () => {
     if (!deleteId) return;
+    setIsDeleting(true);
     const material = materials.find(m => m.id === deleteId);
     
     if (material) {
       const files = [material.file_url, material.image_url].filter(Boolean);
       if (files.length > 0) {
-        await fetch("http://localhost:3001/api/delete", {
-          method: "DELETE", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileUrls: files })
-        });
+        try {
+          await fetch(`${API_BASE.replace(/\/+$/, "")}/api/delete`, {
+            method: "DELETE", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileUrls: files })
+          });
+        } catch (error) {
+          console.error("Failed to delete files from R2:", error);
+        }
       }
     }
 
     await supabase.from("materials").delete().eq("id", deleteId);
     setDeleteId(null);
+    setIsDeleting(false);
     fetchMaterials();
     setToastMessage("Material permanently deleted.");
   };
@@ -80,7 +90,7 @@ export default function ManageMaterials() {
         const formPayload = new FormData();
         formPayload.append("coverImage", editImageFile);
         
-        const res = await fetch("http://localhost:3001/api/upload", { 
+        const res = await fetch(`${API_BASE.replace(/\/+$/, "")}/api/upload`, { 
           method: "POST", 
           body: formPayload 
         });
@@ -196,11 +206,11 @@ export default function ManageMaterials() {
         </div>
       </main>
 
-      {/* EDIT MODAL - Wrapped carefully so it only renders when a material is selected */}
+      {/* EDIT MODAL */}
       {editingMaterial && (
         <Modal 
           open={true} 
-          onClose={() => setEditingMaterial(null)}
+          onClose={() => !isUpdating && setEditingMaterial(null)}
           title="Edit Material"
           description="Update the metadata or replace the cover image."
           actions={
@@ -210,7 +220,7 @@ export default function ManageMaterials() {
             </>
           }
         >
-          <div className="space-y-5 pt-4">
+          <form onSubmit={handleUpdate} className="space-y-5 pt-4">
             <div>
               <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Title</label>
               <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep transition-colors" />
@@ -241,7 +251,7 @@ export default function ManageMaterials() {
                 <input type="file" accept="image/*" onChange={(e) => setEditImageFile(e.target.files?.[0] || null)} className="w-full text-[14px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" />
               </div>
             </div>
-          </div>
+          </form>
         </Modal>
       )}
 
@@ -262,9 +272,9 @@ export default function ManageMaterials() {
         title="Delete Material Permanently" 
         description="Are you sure? This will permanently delete the record AND the files from Cloudflare. This cannot be undone." 
         tone="danger"
-        confirmLabel="Delete Forever"
+        confirmLabel={isDeleting ? "Deleting..." : "Delete Forever"}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleteId(null)}
+        onCancel={() => !isDeleting && setDeleteId(null)}
       />
 
       <ToastNotification 
