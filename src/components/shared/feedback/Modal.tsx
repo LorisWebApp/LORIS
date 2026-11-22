@@ -24,16 +24,24 @@ export function Modal({ open, onClose, title, description, children, actions, si
   const titleId = useId();
   const descId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Keep the latest callbacks in refs so the focus/keyboard effect only runs when the modal opens or closes.
+  // Otherwise a new inline onClose on every parent render (e.g. each keystroke) re-focused the panel and
+  // pulled focus out of text fields.
+  const onCloseRef = useRef(onClose);
+  const dismissibleRef = useRef(dismissible);
+  onCloseRef.current = onClose;
+  dismissibleRef.current = dismissible;
 
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    panelRef.current?.focus();
+    // Focus the panel only if nothing inside it (e.g. an autoFocus field) already has focus.
+    if (!panelRef.current?.contains(document.activeElement)) panelRef.current?.focus();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dismissible) onClose();
+      if (e.key === 'Escape' && dismissibleRef.current) onCloseRef.current();
       if (e.key === 'Tab' && panelRef.current) {
         const f = panelRef.current.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])');
         if (f.length === 0) return;
@@ -49,7 +57,7 @@ export function Modal({ open, onClose, title, description, children, actions, si
       document.body.style.overflow = overflow;
       previous?.focus();
     };
-  }, [open, onClose, dismissible]);
+  }, [open]);
 
   if (!open) return null;
   return createPortal(
