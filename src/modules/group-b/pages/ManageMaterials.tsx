@@ -66,6 +66,7 @@ function EditMaterialForm({ material, onClose, onSaved, onError }: {
 export default function ManageMaterials() {
   const [materials, setMaterials] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "live" | "archived">("all");
   
   // Action States
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -104,35 +105,47 @@ export default function ManageMaterials() {
     setToastMessage("Material archived successfully.");
   };
 
+  const unarchive = async (id: string) => {
+    const { data, error } = await supabase.from("materials").update({ status: "published" }).eq("id", id).select("id");
+    if (error || !data?.length) { setToastMessage(`The material could not be restored: ${error?.message ?? "update was blocked or the record was not found."}`); return; }
+    await fetchMaterials();
+    setToastMessage("Material restored to the catalogue.");
+  };
+
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
       const material = materials.find(m => m.id === deleteId);
+      if (!material) throw new Error("Material not found.");
 
-      if (material) {
-        const files = [material.file_url, material.image_url].filter(Boolean);
-        if (files.length > 0) {
-          const authContext = await getUploadAuthContext(material.organisation_id);
-          const apiBaseUrl = getUploadApiBaseUrl();
-          const response = await fetch(`${apiBaseUrl}/api/delete`, {
-            method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authContext.accessToken}`,
-            },
-            body: JSON.stringify({ materialId: material.id, fileUrls: files }),
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || "Stored files could not be deleted.");
+      const files = [material.file_url, material.image_url].filter(Boolean);
+      let recordDeleted = false;
+
+      if (files.length > 0) {
+        // The server authorises the admin, deletes the record, then removes the stored files.
+        const authContext = await getUploadAuthContext(material.organisation_id);
+        const apiBaseUrl = getUploadApiBaseUrl();
+        const response = await fetch(`${apiBaseUrl}/api/delete`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authContext.accessToken}`,
+          },
+          body: JSON.stringify({ materialId: material.id, fileUrls: files }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "The material could not be deleted.");
+        recordDeleted = Boolean(result.recordDeleted);
+      }
+
+      if (!recordDeleted) {
+        // No stored files (or an older server): fall back to deleting the record directly.
+        const { data: deletedRows, error: deleteError } = await supabase.from("materials").delete().eq("id", deleteId).select("id");
+        if (deleteError || !deletedRows?.length) {
+          throw new Error(`The database record could not be deleted: ${deleteError?.message ?? "delete was blocked or the record was not found."}`);
         }
       }
 
-      const { data: deletedRows, error: deleteError } = await supabase.from("materials").delete().eq("id", deleteId).select("id");
-      if (deleteError || !deletedRows?.length) {
-        setToastMessage(`Storage files were removed, but the database record could not be deleted: ${deleteError?.message ?? "delete was blocked or the record was not found."}`);
-        setDeleteId(null);
-        return;
-      }
       setDeleteId(null);
       await fetchMaterials();
       setToastMessage("Material permanently deleted.");
@@ -151,9 +164,21 @@ export default function ManageMaterials() {
   }, [closeEdit, fetchMaterials]);
   const handleEditError = useCallback((message: string) => setToastMessage(`Error updating: ${message}`), []);
 
-  const filteredMaterials = materials.filter((mat) => 
-    mat.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const liveCount = materials.filter((m) => m.status !== "archived").length;
+  const archivedCount = materials.length - liveCount;
+
+  const filteredMaterials = materials.filter((mat) => {
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "archived" ? mat.status === "archived" : mat.status !== "archived");
+    return matchesStatus && mat.title.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const statusTabs: { value: "all" | "live" | "archived"; label: string; count: number }[] = [
+    { value: "all", label: "All", count: materials.length },
+    { value: "live", label: "Live", count: liveCount },
+    { value: "archived", label: "Archived", count: archivedCount },
+  ];
 
   // --- TABLE COLUMNS ---
   const columns = [
@@ -184,7 +209,9 @@ export default function ManageMaterials() {
     { key: "actions", header: "Actions", align: "right" as const, cell: (row: any) => (
       <div className="flex justify-end gap-2">
         <Button variant="text" onClick={() => handleEditClick(row)}>Edit</Button>
-        {row.status !== 'archived' && (
+        {row.status === 'archived' ? (
+          <Button variant="outline" onClick={() => void unarchive(row.id)}>Unarchive</Button>
+        ) : (
           <Button variant="outline" onClick={() => setArchiveId(row.id)}>Archive</Button>
         )}
         <Button variant="danger" onClick={() => setDeleteId(row.id)}>Delete</Button>
@@ -225,6 +252,24 @@ export default function ManageMaterials() {
           </div>
         </div>
         
+        <div role="group" aria-label="Filter by status" className="mb-4 flex flex-wrap gap-2">
+          {statusTabs.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              aria-pressed={statusFilter === tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={`rounded-full border px-4 py-1.5 text-[14px] font-semibold transition ${
+                statusFilter === tab.value
+                  ? "border-deep bg-deep text-white"
+                  : "border-line bg-white text-deep hover:bg-mint"
+              }`}
+            >
+              {tab.label} <span className="opacity-70">({tab.count})</span>
+            </button>
+          ))}
+        </div>
+
         <div className="bg-white border border-line shadow-sm rounded-lg p-6">
           <DataTable 
             columns={columns} 

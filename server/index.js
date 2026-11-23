@@ -419,11 +419,18 @@ app.delete(
         return res.status(400).json({ error: 'A file URL is not a recognised LORIS storage object.' });
       }
 
+      // Remove the database record first (authorised above, via the service role so a
+      // missing/mismatched RLS delete policy cannot block an authorised admin). If this
+      // fails nothing has been removed from storage, so the material is never left
+      // as a record pointing at deleted files.
+      await supabaseRest(`materials?id=eq.${materialId}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+
+      // Storage deletes are idempotent, so a retry after a partial failure is safe.
       await Promise.all(objects.map((object) => r2.send(new DeleteObjectCommand({
         Bucket: object.bucket,
         Key: object.key,
       }))));
-      res.json({ message: 'Authorised material files deleted from storage.' });
+      res.json({ message: 'Material record and files deleted.', recordDeleted: true });
     } catch (error) {
       console.error('Delete failed:', error.message);
       res.status(500).json({ error: 'Could not delete the stored files.' });
