@@ -18,6 +18,7 @@ import NotesAndBookmarks from './modules/group-c/pages/user/NotesAndBookmarks';
 import Profile from './modules/group-c/pages/user/Profile';
 import Settings from './modules/group-c/pages/user/Settings';
 import Support from './modules/group-c/pages/user/Support';
+import OfflineNotice from './components/layout/OfflineNotice';
 import { OfflineActionsProvider } from './modules/group-c/components/user/OfflineActionsContext';
 import Reader from './modules/group-c/pages/user/Reader';
 import OfflineLibrary from './pages/user/OfflineLibrary';
@@ -30,7 +31,9 @@ import OrganisationRequests from './pages/platform/OrganisationRequests';
 import { OrganisationRegistration } from './modules/nathan/pages/public/OrganisationRegistration';
 
 export default function App() {
-  return <Routes>
+  return <>
+  <OfflineNotice />
+  <Routes>
     <Route path="/" element={<LandingPage />} />
     <Route path="/personal/login" element={<PublicOnly><Login /></PublicOnly>} />
     <Route path="/organisation/login" element={<PublicOnly adminOnly><Login /></PublicOnly>} />
@@ -69,5 +72,6 @@ export default function App() {
       <Route path="/showcase" element={<ComponentShowcase />} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes>;
+  </Routes>
+  </>;
 }
