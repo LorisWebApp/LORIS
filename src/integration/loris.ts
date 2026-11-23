@@ -4,6 +4,7 @@ import { supabase } from '../services/supabase';
 import { createLorisApiAdapter } from '../group-d/offline/apiAdapter';
 import type { OfflineMaterialMetadata } from '../group-d/types/models';
 import type { NotificationItem, UserMenuEntry } from '../components/shared';
+import { toHttps } from '../lib/secureUrl';
 
 export interface CurrentUser { id: string; initials: string }
 
@@ -39,7 +40,7 @@ export const ROUTES = {
 } as const;
 
 // Without a base URL these calls would hit the static frontend host instead of the Express API.
-const API_ORIGIN = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, '');
+const API_ORIGIN = toHttps(((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, ''));
 export const lorisApi = createLorisApiAdapter({ getAccessToken, baseUrl: API_ORIGIN });
 
 export interface ReaderRequest { metadata: OfflineMaterialMetadata; objectUrl: string }

@@ -12,6 +12,7 @@
  */
 
 import { supabase } from "../../../services/supabase";
+import { toHttps } from "../../../lib/secureUrl";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL as
   | string
@@ -19,7 +20,7 @@ const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL as
 
 // VITE_API_BASE_URL is the server origin (e.g. http://localhost:3001); every
 // Express route lives under /api, so append it unless it is already present.
-const trimmedBase = (configuredBaseUrl?.trim() || "").replace(/\/+$/, "");
+const trimmedBase = toHttps((configuredBaseUrl?.trim() || "").replace(/\/+$/, ""));
 export const API_BASE_URL = !trimmedBase
   ? "/api"
   : /\/api$/.test(trimmedBase)

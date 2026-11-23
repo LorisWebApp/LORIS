@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getAccessToken } from '../integration/loris';
+import { toHttps } from '../lib/secureUrl';
 
 /** Fetches a material through the authenticated API (never a public storage URL). */
 export function useProtectedFile(materialId: string | undefined, enabled: boolean) {
@@ -14,7 +15,7 @@ export function useProtectedFile(materialId: string | undefined, enabled: boolea
       try {
         const token = await getAccessToken();
         if (!token) throw new Error('Sign in to view this material.');
-        const base = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, '');
+        const base = toHttps(((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, ''));
         const r = await fetch(`${base}/api/materials/${encodeURIComponent(materialId)}/file`, { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal });
         if (!r.ok) throw new Error(r.status === 404 ? 'This material is not available.' : 'The material could not be loaded.');
         setBlob(await r.blob());

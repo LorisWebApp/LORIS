@@ -4,11 +4,12 @@
  * services at it instead and delete this file.
  */
 import { ApiError } from './apiError';
+import { toHttps } from '../../../lib/secureUrl';
 
 export { ApiError };
 
 /** Real API-only HTTP wrapper. Mock server fallback has been removed. */
-const API_BASE = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api').replace(/\/$/, '');
+const API_BASE = toHttps(((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api').replace(/\/$/, ''));
 const TOKEN_KEY = 'loris.accessToken';
 
 export const UNAUTHORIZED_EVENT = 'loris:unauthorized';

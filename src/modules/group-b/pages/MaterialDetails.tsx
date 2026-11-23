@@ -10,6 +10,7 @@ import { saveMaterialForOffline } from "../../../group-d/offline/offlineMaterial
 import { getAccessToken } from "../../../integration/loris";
 import { useProtectedFile } from "../../../hooks/useProtectedFile";
 import { ProtectedMedia, ProtectedPdfViewer } from "../../../components/reader/ProtectedViewer";
+import { toHttps, pathOf } from "../../../lib/secureUrl";
 
 export default function MaterialDetails() {
   const { id } = useParams();
@@ -73,12 +74,13 @@ export default function MaterialDetails() {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Sign in to save materials offline.");
-      const apiBase = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "").trim().replace(/\/+$/, "");
+      const apiBase = toHttps(((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "").trim().replace(/\/+$/, ""));
       if (!apiBase) throw new Error("The offline download service is not configured (VITE_API_BASE_URL).");
       const grantResponse = await fetch(`${apiBase}/api/offline/materials/${encodeURIComponent(String(material.id))}/download`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const grant = await grantResponse.json().catch(() => ({})) as { url?: string; sizeBytes?: number; expiresAt?: string; error?: string };
       if (!grantResponse.ok || !grant.url || !grant.expiresAt) throw new Error(grant.error || "The server could not authorise this offline download.");
-      const fileResponse = await fetch(grant.url, { headers: { Authorization: `Bearer ${token}` } });
+      // Never trust the host/protocol in the server-issued URL (proxy makes it http://); re-base on our API origin.
+      const fileResponse = await fetch(toHttps(`${apiBase}${pathOf(grant.url)}`), { headers: { Authorization: `Bearer ${token}` } });
       if (!fileResponse.ok) throw new Error("The material file could not be downloaded.");
       const fileBlob = await fileResponse.blob();
       await saveMaterialForOffline({

@@ -7,6 +7,7 @@ import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { ReaderDocument, ReaderChapter, ReaderPage } from "../types/reader.types";
 import { getAccessToken } from "../../../integration/loris";
+import { toHttps } from "../../../lib/secureUrl";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -36,7 +37,7 @@ export function itemsToParagraphs(items: Item[]): string[] {
 async function fetchPdf(materialId: string): Promise<ArrayBuffer> {
   const token = await getAccessToken();
   if (!token) throw new Error("Sign in to read this material.");
-  const base = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "").trim().replace(/\/+$/, "");
+  const base = toHttps(((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "").trim().replace(/\/+$/, ""));
   const res = await fetch(`${base}/api/materials/${encodeURIComponent(materialId)}/file`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(res.status === 404 ? "This material is not available." : "The PDF could not be loaded.");
   return res.arrayBuffer();

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ClipboardList, RefreshCw, ArrowDown, ArrowUp } from 'lucide-react';
 import { Button, Modal, DetailRow, Pagination } from '../../components/shared';
 import { supabase } from '../../services/supabase';
+import { toHttps } from '../../lib/secureUrl';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 type OrganisationRequest = {
@@ -77,7 +78,7 @@ export default function OrganisationRequests() {
     let emailNote = '';
     try {
       const { data: session } = await supabase.auth.getSession();
-      const base = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, '');
+      const base = toHttps(((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim().replace(/\/+$/, ''));
       const response = await fetch(`${base}/api/notifications/organisation-decision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token ?? ''}` },
