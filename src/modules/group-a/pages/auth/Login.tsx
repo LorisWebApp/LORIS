@@ -30,15 +30,32 @@ async function explainNotAdmin(authUserId: string, memberships: Membership[]): P
       ? `Your organisation was approved, but your administrator access is "${admin.status}". Please contact LORIS support.`
       : 'Your organisation was approved, but administrator access has not been set up for this account yet. Please contact LORIS support.'
   }
-  return 'This account is not an organisation administrator. Use the personal login, or register your organisation first.'
+  return 'These are personal account credentials. Please enter your organisation credentials to log in here, or use the Personal Account login.'
 }
 
 type LoginMode = 'personal' | 'organisation' | 'platform'
 
-const SUBTITLE: Record<LoginMode, string> = {
-  personal: 'Log in to access your personal library account.',
-  organisation: 'Log in to manage your organisation’s library.',
-  platform: 'Log in to the LORIS platform management area.',
+const COPY: Record<LoginMode, { badge?: string; heading: string; subtitle: string; emailLabel: string; emailPlaceholder: string }> = {
+  personal: {
+    heading: 'Welcome Back!',
+    subtitle: 'Log in to access your personal library account.',
+    emailLabel: 'Email Address',
+    emailPlaceholder: 'Enter your email address',
+  },
+  organisation: {
+    badge: 'Organisational Account',
+    heading: 'Organisation Login',
+    subtitle: 'Log in as an administrator to manage your organisation’s library, materials and members.',
+    emailLabel: 'Administrator Email Address',
+    emailPlaceholder: 'Enter your administrator email address',
+  },
+  platform: {
+    badge: 'Platform Management',
+    heading: 'Platform Manager Login',
+    subtitle: 'Log in to the LORIS platform management area.',
+    emailLabel: 'Email Address',
+    emailPlaceholder: 'Enter your email address',
+  },
 }
 
 function Login() {
@@ -90,14 +107,14 @@ function Login() {
         await logoutUser()
         throw new Error(
           isManager
-            ? 'This is a platform manager account. Use the Platform Manager login instead.'
-            : 'This is an organisation administrator account. Please use the Organisational Account login.'
+            ? 'These are platform manager credentials. Please use the Platform Manager login instead.'
+            : 'These are organisation credentials. Please enter your personal account credentials to log in here, or use the Organisational Account login.'
         )
       }
 
       if (mode === 'organisation' && !isAdmin) {
         const reason = isManager
-          ? 'This is a platform manager account. Use the Platform Manager login instead.'
+          ? 'These are platform manager credentials. Please use the Platform Manager login instead.'
           : await explainNotAdmin(roles.profile.auth_user_id, roles.memberships)
         await logoutUser()
         throw new Error(reason)
@@ -105,7 +122,7 @@ function Login() {
 
       if (mode === 'platform' && !isManager) {
         await logoutUser()
-        throw new Error('This account is not a platform manager. Use the Personal or Organisational Account login.')
+        throw new Error('These are not platform manager credentials. Please use the Personal Account or Organisational Account login.')
       }
 
       setSuccessMessage('Login successful!')
@@ -136,20 +153,26 @@ function Login() {
       <Logo />
 
       <div className="mb-8 text-center">
+        {COPY[mode].badge && (
+          <span className="mb-3 inline-block rounded-full bg-mint px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-text">
+            {COPY[mode].badge}
+          </span>
+        )}
+
         <h2 className="text-3xl font-semibold text-deep">
-          Welcome Back!
+          {COPY[mode].heading}
         </h2>
 
         <p className="mt-2 text-base text-muted">
-          {SUBTITLE[mode]}
+          {COPY[mode].subtitle}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <Input
-          label="Email Address"
+          label={COPY[mode].emailLabel}
           type="email"
-          placeholder="Enter your email address"
+          placeholder={COPY[mode].emailPlaceholder}
           name="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
