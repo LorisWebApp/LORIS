@@ -58,6 +58,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Connectivity probe: always hit the network so a dead connection is detected.
+  if (url.pathname === "/__ping") {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
+
   // Never cache API calls or authenticated application data.
   if (url.pathname.startsWith("/api/")) return;
 

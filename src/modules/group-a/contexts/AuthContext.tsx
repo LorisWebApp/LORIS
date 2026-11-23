@@ -96,7 +96,7 @@ async function fetchRoleStateOnline(user: User): Promise<RoleState> {
     .maybeSingle()
 
   if (error) {
-    console.error('Profile retrieval failed:', error.message)
+    if (!isNetworkFailure(error.message)) console.error('Profile retrieval failed:', error.message)
     // Connection dropped mid-request: fall back to the remembered role.
     return isNetworkFailure(error.message) ? readCachedRoles(user.id) ?? EMPTY : EMPTY
   }

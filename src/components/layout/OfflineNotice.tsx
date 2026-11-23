@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WifiOff } from 'lucide-react';
+import { useConnectivity } from '../../hooks/useConnectivity';
 
 /** Paths that already work without a connection, so the prompt is not needed there. */
 const OFFLINE_SAFE_PREFIXES = ['/offline-library', '/offline-viewer', '/offline-reader'];
@@ -13,29 +14,17 @@ const OFFLINE_SAFE_PREFIXES = ['/offline-library', '/offline-viewer', '/offline-
 export function OfflineNotice() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  const { online } = useConnectivity();
   const [dismissed, setDismissed] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const onOfflineSafePage = OFFLINE_SAFE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   const visible = !online && !dismissed && !onOfflineSafePage;
 
+  // Show the prompt again whenever the connection state changes.
   useEffect(() => {
-    const goOnline = () => {
-      setOnline(true);
-      setDismissed(false);
-    };
-    const goOffline = () => {
-      setOnline(false);
-      setDismissed(false);
-    };
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
+    setDismissed(false);
+  }, [online]);
 
   // A press on a button or link while offline brings the prompt back.
   useEffect(() => {

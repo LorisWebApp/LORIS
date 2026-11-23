@@ -5,7 +5,20 @@ import { useAuth } from '../../modules/group-a/contexts/AuthContext';
 import { AssistantProvider } from '../assistant/AssistantProvider';
 import { AssistantWidget } from '../assistant/AssistantWidget';
 import { ContentProtection } from './ContentProtection';
+import { OfflinePage } from './OfflinePage';
+import { useConnectivity } from '../../hooks/useConnectivity';
 import { PublicHeader } from '../../modules/group-a/components/layouts/PublicHeader';
+
+/** Pages that work without a connection; every other page shows the offline message instead. */
+const OFFLINE_SAFE_PREFIXES = ['/offline-library', '/offline-viewer', '/offline-reader'];
+
+/** Renders the page, or a "not connected" message (with no requests made) when offline. */
+function PageOrOffline() {
+  const { online, recheck } = useConnectivity();
+  const { pathname } = useLocation();
+  const safe = OFFLINE_SAFE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return !online && !safe ? <OfflinePage onRetry={recheck} /> : <Outlet />;
+}
 
 type NavItem = { to: string; label: string; icon: typeof BookOpen; end?: boolean };
 
@@ -82,7 +95,7 @@ export function GlobalLayout() {
           <button onClick={() => void signOut()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line px-3 py-3 text-base text-brand-text hover:bg-mint"><LogOut size={18}/> Sign out</button>
         </div>}
       </header>
-      <main className="min-h-[calc(100vh-73px)]"><Outlet /></main>
+      <main className="min-h-[calc(100vh-73px)]"><PageOrOffline /></main>
     </div>
     {!isPlatformManager && !isOrgAdmin && <AssistantWidget />}
   </AssistantProvider>;
@@ -92,7 +105,7 @@ export function GlobalLayout() {
 function GuestLayout() {
   return <div className="min-h-screen bg-page text-deep">
     <PublicHeader />
-    <main className="min-h-[calc(100vh-73px)]"><Outlet /></main>
+    <main className="min-h-[calc(100vh-73px)]"><PageOrOffline /></main>
   </div>;
 }
 
