@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { BookmarkButton } from "../../components/reader/BookmarkButton";
 import { ReaderFavouriteButton } from "../../components/reader/ReaderFavouriteButton";
+import { OfflineActionsProvider } from "../../components/user/OfflineActionsContext";
 import { SaveOfflineToggle } from "../../components/user/SaveOfflineToggle";
 import { listFavouriteIds, setFavourite } from "../../services/favourites.service";
 import {
@@ -55,7 +56,7 @@ interface EditorTarget {
  * Group C – Reader screen.
  * Route: /user/reader/:id?page=N
  */
-export function Reader() {
+function ReaderScreen() {
   const { id: materialId = "" } = useParams();
   const [params] = useSearchParams();
 
@@ -518,6 +519,15 @@ export function Reader() {
         onClose={closeToast}
       />
     </div>
+  );
+}
+
+/** Reader provides its own offline state, so it works wherever it is routed. */
+export function Reader() {
+  return (
+    <OfflineActionsProvider>
+      <ReaderScreen />
+    </OfflineActionsProvider>
   );
 }
 

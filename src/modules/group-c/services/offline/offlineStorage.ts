@@ -170,7 +170,13 @@ export async function downloadMaterial(
       }
     })();
 
-    const response = await fetch(`${API_BASE_URL}${grantPath}`, {
+    // Never request plain http from an https page (browsers block it as mixed content).
+    let fileUrl = `${API_BASE_URL}${grantPath}`;
+    if (window.location.protocol === "https:") {
+      fileUrl = fileUrl.replace(/^http:\/\//i, "https://");
+    }
+
+    const response = await fetch(fileUrl, {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
 

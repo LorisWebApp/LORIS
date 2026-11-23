@@ -18,6 +18,7 @@ import NotesAndBookmarks from './modules/group-c/pages/user/NotesAndBookmarks';
 import Profile from './modules/group-c/pages/user/Profile';
 import Settings from './modules/group-c/pages/user/Settings';
 import Support from './modules/group-c/pages/user/Support';
+import { OfflineActionsProvider } from './modules/group-c/components/user/OfflineActionsContext';
 import Reader from './modules/group-c/pages/user/Reader';
 import OfflineLibrary from './pages/user/OfflineLibrary';
 import OfflineEpubReader from './pages/user/OfflineEpubReader';
@@ -41,11 +42,11 @@ export default function App() {
     <Route path="/register" element={<PublicOnly><AccountTypeSelect mode="register" /></PublicOnly>} />
 
     <Route element={<GlobalLayout />}>
-      <Route path="/dashboard" element={<RequireRole role="end_user"><Dashboard /></RequireRole>} />
+      <Route path="/dashboard" element={<RequireRole role="end_user"><OfflineActionsProvider><Dashboard /></OfflineActionsProvider></RequireRole>} />
       <Route path="/catalogue" element={<Catalogue />} />
       <Route path="/material/:id" element={<MaterialDetails />} />
-      <Route path="/user/my-library" element={<RequireRole role="end_user"><Favourites /></RequireRole>} />
-      <Route path="/user/favourites" element={<RequireRole role="end_user"><Favourites /></RequireRole>} />
+      <Route path="/user/my-library" element={<RequireRole role="end_user"><OfflineActionsProvider><Favourites /></OfflineActionsProvider></RequireRole>} />
+      <Route path="/user/favourites" element={<RequireRole role="end_user"><OfflineActionsProvider><Favourites /></OfflineActionsProvider></RequireRole>} />
       <Route path="/user/notes-bookmarks" element={<RequireRole role="end_user"><NotesAndBookmarks /></RequireRole>} />
       <Route path="/user/profile" element={<RequireRole role="end_user"><Profile /></RequireRole>} />
       <Route path="/user/settings" element={<RequireRole role="end_user"><Settings /></RequireRole>} />
