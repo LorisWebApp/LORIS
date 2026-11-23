@@ -35,9 +35,9 @@ export default function App() {
   <OfflineNotice />
   <Routes>
     <Route path="/" element={<LandingPage />} />
-    <Route path="/personal/login" element={<PublicOnly><Login /></PublicOnly>} />
-    <Route path="/organisation/login" element={<PublicOnly adminOnly><Login /></PublicOnly>} />
-    <Route path="/platform/login" element={<PublicOnly platformOnly><Login /></PublicOnly>} />
+    <Route path="/personal/login" element={<PublicOnly portal="personal"><Login /></PublicOnly>} />
+    <Route path="/organisation/login" element={<PublicOnly portal="organisation"><Login /></PublicOnly>} />
+    <Route path="/platform/login" element={<PublicOnly portal="platform"><Login /></PublicOnly>} />
     <Route path="/personal/register" element={<PublicOnly><Register /></PublicOnly>} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />

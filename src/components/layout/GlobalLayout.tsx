@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { BookOpen, LayoutDashboard, Library, Upload, WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X, ClipboardList, Building2, FolderOpen, Users } from 'lucide-react';
 import { useAuth } from '../../modules/group-a/contexts/AuthContext';
@@ -113,16 +113,40 @@ export function RequireRole({ role, children }: { role: 'platform_manager' | 'ad
   return <div className="mx-auto max-w-xl p-12 text-center"><h1 className="text-2xl font-semibold">Access denied</h1><p className="mt-2 text-muted">Your account does not have permission to access this section.</p></div>;
 }
 
-/** Login/registration pages: signed-in users go straight to their role home, never the landing page. */
-export function PublicOnly({ children, adminOnly = false, platformOnly = false }: { children: ReactNode; adminOnly?: boolean; platformOnly?: boolean }) {
+/**
+ * Login/registration pages: signed-in users go straight to their role home, never the landing page.
+ *
+ * `portal` marks a login page. It only redirects an account that belongs to that login, and it keeps
+ * the form mounted while a sign-in is in flight, so the login page can verify the account type and
+ * show "wrong login" messages before anyone is let into an area they should not be in.
+ */
+export function PublicOnly({
+  children,
+  portal,
+}: {
+  children: ReactNode;
+  portal?: 'personal' | 'organisation' | 'platform';
+}) {
   const { user, profile, loading, homePath, isOrgAdmin, isPlatformManager } = useAuth();
-  if (loading) return <div className="min-h-screen grid place-items-center bg-page text-deep">Loading LORIS…</div>;
-  // adminOnly (the organisation login): a signed-in non-admin stays on the page, where the
-  // login form explains why, instead of being sent on to the end-user dashboard.
-  if (platformOnly) {
-    if (user && profile && isPlatformManager) return <Navigate to="/platform" replace />;
-    return <>{children}</>;
+  const shownOnce = useRef(false);
+
+  if (loading && !shownOnce.current) {
+    return <div className="min-h-screen grid place-items-center bg-page text-deep">Loading LORIS…</div>;
   }
-  if (user && profile && (!adminOnly || isOrgAdmin || isPlatformManager)) return <Navigate to={homePath} replace />;
+  shownOnce.current = true;
+  // While a sign-in is being verified, never swap the form out for a spinner or a redirect.
+  if (loading) return <>{children}</>;
+
+  if (user && profile) {
+    if (portal === 'platform') {
+      if (isPlatformManager) return <Navigate to="/platform" replace />;
+    } else if (portal === 'organisation') {
+      if (isOrgAdmin) return <Navigate to="/manage" replace />;
+    } else if (portal === 'personal') {
+      if (!isOrgAdmin && !isPlatformManager) return <Navigate to="/dashboard" replace />;
+    } else {
+      return <Navigate to={homePath} replace />;
+    }
+  }
   return <>{children}</>;
 }
