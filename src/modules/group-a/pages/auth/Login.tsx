@@ -33,9 +33,23 @@ async function explainNotAdmin(authUserId: string, memberships: Membership[]): P
   return 'This account is not an organisation administrator. Use the personal login, or register your organisation first.'
 }
 
+type LoginMode = 'personal' | 'organisation' | 'platform'
+
+const SUBTITLE: Record<LoginMode, string> = {
+  personal: 'Log in to access your personal library account.',
+  organisation: 'Log in to manage your organisation’s library.',
+  platform: 'Log in to the LORIS platform management area.',
+}
+
 function Login() {
   const navigate = useNavigate()
-  const isOrgLogin = useLocation().pathname.startsWith('/organisation')
+  const pathname = useLocation().pathname
+  const mode: LoginMode = pathname.startsWith('/platform')
+    ? 'platform'
+    : pathname.startsWith('/organisation')
+      ? 'organisation'
+      : 'personal'
+  const isOrgLogin = mode === 'organisation'
   const { refreshRoles } = useAuth()
 
   const [email, setEmail] = useState('')
@@ -67,17 +81,39 @@ function Login() {
         )
       }
 
-      // The organisation login is for organisation administrators only. Anyone else is signed
-      // out with the actual reason, rather than being dropped into the end-user area.
+      // Each login accepts only its own kind of account. Anyone else is signed out and told
+      // which login to use, rather than being dropped into a different area.
       const isAdmin = roles.memberships.some((m) => m.status === 'active' && m.role === 'admin')
-      if (isOrgLogin && !isAdmin && roles.profile.platform_role !== 'platform_manager') {
-        const reason = await explainNotAdmin(roles.profile.auth_user_id, roles.memberships)
+      const isManager = roles.profile.platform_role === 'platform_manager'
+
+      if (mode === 'personal' && (isAdmin || isManager)) {
+        await logoutUser()
+        throw new Error(
+          isManager
+            ? 'This is a platform manager account. Use the Platform Manager login instead.'
+            : 'This is an organisation administrator account. Please use the Organisational Account login.'
+        )
+      }
+
+      if (mode === 'organisation' && !isAdmin) {
+        const reason = isManager
+          ? 'This is a platform manager account. Use the Platform Manager login instead.'
+          : await explainNotAdmin(roles.profile.auth_user_id, roles.memberships)
         await logoutUser()
         throw new Error(reason)
       }
 
+      if (mode === 'platform' && !isManager) {
+        await logoutUser()
+        throw new Error('This account is not a platform manager. Use the Personal or Organisational Account login.')
+      }
+
       setSuccessMessage('Login successful!')
-      navigate(getHomePath(roles), { replace: true })
+      // Land in the area that matches the login that was used.
+      navigate(
+        mode === 'platform' ? '/platform' : mode === 'organisation' ? '/manage' : getHomePath(roles),
+        { replace: true },
+      )
       return
 
     } catch (error) {
@@ -105,7 +141,7 @@ function Login() {
         </h2>
 
         <p className="mt-2 text-base text-muted">
-          Log in to access your personal library account.
+          {SUBTITLE[mode]}
         </p>
       </div>
 
@@ -161,15 +197,24 @@ function Login() {
         </Button>
       </form>
 
-      <p className="mt-7 text-center text-base text-muted">
-        Don't have an account?{' '}
-        <Link
-          to={isOrgLogin ? "/organisation-registration" : "/personal/register"}
-          className="font-semibold text-brand-text hover:underline"
-        >
-          Register
-        </Link>
-      </p>
+      {mode !== 'platform' && (
+        <p className="mt-7 text-center text-base text-muted">
+          Don't have an account?{' '}
+          <Link
+            to={isOrgLogin ? "/organisation-registration" : "/personal/register"}
+            className="font-semibold text-brand-text hover:underline"
+          >
+            Register
+          </Link>
+        </p>
+      )}
+
+      <Link
+        to={mode === 'platform' ? '/login' : '/platform/login'}
+        className="fixed bottom-4 right-4 z-20 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-brand-text shadow hover:bg-white hover:underline"
+      >
+        {mode === 'platform' ? 'Back to login options' : 'Platform manager login'}
+      </Link>
     </AuthLayout>
   )
 }

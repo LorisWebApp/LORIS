@@ -91,6 +91,15 @@ function AccountTypeSelect({ mode }: { mode: 'login' | 'register' }) {
         </div>
 
       </div>
+
+      {isLogin && (
+        <Link
+          to="/platform/login"
+          className="fixed bottom-4 right-4 z-20 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-brand-text shadow hover:bg-white hover:underline"
+        >
+          Platform manager login
+        </Link>
+      )}
     </main>
   )
 }
