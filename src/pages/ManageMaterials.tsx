@@ -220,30 +220,30 @@ export default function ManageMaterials() {
     setToastMessage("Material archived successfully.");
   };
 
-  const confirmDelete = async () => {
+      const confirmDelete = async () => {
     if (!deleteId || isDeleting) return;
     setIsDeleting(true);
 
     try {
       const material = materials.find((m) => m.id === deleteId);
 
-      // 1) Delete the database record FIRST and check that it really happened.
-      //    (Before, the files were deleted first, and if the record delete
-      //    was blocked you were left with a record and no files.)
       const { data, error } = await supabase
         .from("materials")
         .delete()
+        // ... rest of the code
         .eq("id", deleteId)
         .select();
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        throw new Error(
-          "Delete was blocked. Check the Supabase policy for DELETE on the materials table."
-        );
+        throw new Error("Delete was blocked by the database.");
       }
+      
+      // ... rest of your code
 
-      // 2) Only now remove the files from Cloudflare R2
+      // ... rest of your R2 deletion code ...
+
+      // 2) Remove the files from Cloudflare R2
       if (material) {
         const files = [material.file_url, material.image_url].filter(Boolean);
         if (files.length > 0) {
@@ -273,6 +273,7 @@ export default function ManageMaterials() {
       setIsDeleting(false);
     }
   };
+
 
   const filteredMaterials = materials.filter((mat) =>
     (mat.title || "").toLowerCase().includes(searchQuery.toLowerCase())

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Upload, Users, Video, Image as ImageIcon, Headphones, Library } from 'lucide-react';
+import { BookOpen, Upload, Users, Video, Image as ImageIcon, Headphones, Library, FileText } from 'lucide-react';
 import { supabase } from '../supabase';
 import { PageHeader, Button } from '../shared';
 
@@ -21,6 +21,12 @@ export default function OrganisationOverview() {
   // Calculate stats cleanly
   const total = materials.length;
   const books = materials.filter(m => m.file_type?.includes('pdf') || m.file_type?.includes('epub')).length;
+  const documents = materials.filter(m => 
+    m.file_type?.includes('docx') || 
+    m.file_type?.includes('doc') || 
+    m.file_type?.includes('pptx') || 
+    m.file_type?.includes('ppt')
+  ).length;
   const videos = materials.filter(m => m.file_type?.includes('video')).length;
   const audio = materials.filter(m => m.file_type?.includes('audio')).length;
   const images = materials.filter(m => m.file_type?.includes('image')).length;
@@ -48,8 +54,8 @@ export default function OrganisationOverview() {
       {/* MAIN CONTENT */}
       <main className="max-w-[1312px] mx-auto px-8 py-10 space-y-12">
         
-        {/* 5-COLUMN STATS ROW (TRANSPARENT CARDS) */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* 6-COLUMN STATS ROW */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           
           {/* Total */}
           <div className="relative overflow-hidden rounded-lg shadow-sm hover:shadow-md transition-shadow group border-t-4 border-t-brand">
@@ -76,6 +82,20 @@ export default function OrganisationOverview() {
               </div>
               <p className="text-[36px] font-serif text-deep leading-none mb-2">{books}</p>
               <p className="text-[13px] text-muted">PDFs & EPUBs</p>
+            </div>
+          </div>
+
+          {/* Documents (NEW) */}
+          <div className="relative overflow-hidden rounded-lg shadow-sm hover:shadow-md transition-shadow group border-t-4 border-t-brand">
+            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1586281380349-632531db7ed4?q=80&w=400')] bg-cover bg-center opacity-40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-white via-white/90 to-transparent" />
+            <div className="relative z-10 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[12px] font-bold uppercase tracking-widest text-muted">Documents</p>
+                <div className="bg-mint p-2 rounded-md group-hover:bg-badge transition-colors"><FileText size={18} className="text-deep" /></div>
+              </div>
+              <p className="text-[36px] font-serif text-deep leading-none mb-2">{documents}</p>
+              <p className="text-[13px] text-muted">DOCX & PPTX</p>
             </div>
           </div>
 
@@ -192,7 +212,7 @@ export default function OrganisationOverview() {
             </div>
             <p className="text-[15px] text-[#A8D9DC] ml-11 mb-8">How your {total} materials are shared across formats.</p>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                
                {/* Books */}
                <div className="relative overflow-hidden rounded-lg shadow-lg border-l-4 border-l-brand">
@@ -205,6 +225,20 @@ export default function OrganisationOverview() {
                    </div>
                    <p className="text-[32px] font-serif text-deep leading-none mb-2">{books}</p>
                    <p className="text-[12px] text-muted">{total > 0 ? ((books/total)*100).toFixed(1) : 0}% of collection</p>
+                 </div>
+               </div>
+
+               {/* Documents (NEW) */}
+               <div className="relative overflow-hidden rounded-lg shadow-lg border-l-4 border-l-brand">
+                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1586281380349-632531db7ed4?q=80&w=400')] bg-cover bg-center opacity-40" />
+                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/90 to-transparent" />
+                 <div className="relative z-10 p-5">
+                   <div className="flex items-center justify-between mb-3">
+                     <p className="text-[12px] font-bold uppercase tracking-widest text-muted">Docs</p>
+                     <div className="bg-mint p-1.5 rounded-md"><FileText size={16} className="text-deep" /></div>
+                   </div>
+                   <p className="text-[32px] font-serif text-deep leading-none mb-2">{documents}</p>
+                   <p className="text-[12px] text-muted">{total > 0 ? ((documents/total)*100).toFixed(1) : 0}% of collection</p>
                  </div>
                </div>
 

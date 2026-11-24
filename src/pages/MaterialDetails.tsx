@@ -1,31 +1,78 @@
 import { useState, useEffect } from "react";
-import { useParams,} from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { supabase } from "../supabase";
-import { BookOpen, X, Download, PlayCircle, Headphones } from "lucide-react";
+import { BookOpen, X, Download, PlayCircle, Headphones, FileText } from "lucide-react";
 import { PageHeader, Button, DetailRow, StatusBadge } from "../shared";
 
 export default function MaterialDetails() {
   const { id } = useParams();
   const [material, setMaterial] = useState<any>(null);
+  const [categoryName, setCategoryName] = useState<string>(""); // New state for the category name
   const [isReading, setIsReading] = useState(false);
 
   useEffect(() => {
-    supabase.from("materials").select("*").eq("id", id).single().then(({ data }) => setMaterial(data));
+    const fetchMaterialAndCategory = async () => {
+      // 1. Fetch the material
+      const { data: materialData } = await supabase
+        .from("materials")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (materialData) {
+        setMaterial(materialData);
+
+        // 2. If it has a category_id, fetch the category name
+        if (materialData.category_id) {
+          const { data: categoryData } = await supabase
+            .from("categories")
+            .select("name")
+            .eq("id", materialData.category_id)
+            .single();
+            
+          if (categoryData) {
+            setCategoryName(categoryData.name);
+          }
+        }
+      }
+    };
+    
+    fetchMaterialAndCategory();
   }, [id]);
 
   if (!material) return <div className="p-10 text-center text-muted font-serif">Loading...</div>;
 
-    const fileType = material.file_type ? material.file_type.toLowerCase() : "";
+  const fileType = material.file_type ? material.file_type.toLowerCase() : "";
+  
   const isAudio = fileType.includes("audio") || fileType.includes("mp3");
   const isVideo = fileType.includes("video") || fileType.includes("mp4");
   const isPDF = fileType.includes("pdf");
   const isEPUB = fileType.includes("epub");
-   const isImage = 
+  const isImage = 
     fileType.includes("image") || 
     fileType.includes("jpg") || 
     fileType.includes("jpeg") || 
     fileType.includes("png") ||
     (material.file_url && /\.(jpg|jpeg|png|gif|webp)$/i.test(material.file_url));
+    
+  const isOffice = 
+    fileType.includes("presentationml") || 
+    fileType.includes("wordprocessingml") || 
+    fileType.includes("docx") || 
+    fileType.includes("pptx");
+
+  const getReadableFormat = (type: string) => {
+    if (!type) return "FILE";
+    if (type.includes("pdf")) return "PDF";
+    if (type.includes("epub")) return "EPUB";
+    if (type.includes("presentationml") || type.includes("pptx")) return "PRESENTATION (PPTX)";
+    if (type.includes("wordprocessingml") || type.includes("docx")) return "WORD DOCUMENT (DOCX)";
+    if (type.includes("audio")) return "AUDIO";
+    if (type.includes("video")) return "VIDEO";
+    if (type.includes("image")) return "IMAGE";
+    return type.split('/')[1]?.toUpperCase() || "FILE";
+  };
+
   return (
     <div className="min-h-screen bg-page font-serif pb-20">
       
@@ -52,16 +99,20 @@ export default function MaterialDetails() {
 
         {/* Details Info */}
         <div>
-          <StatusBadge label={material.category_id || "General"} variant="accent" />
+          {/* FIXED: Show categoryName instead of the UUID */}
+          {categoryName && (
+            <StatusBadge label={categoryName} variant="accent" />
+          )}
+
           <h1 className="text-[38px] font-medium text-deep mt-4 leading-tight">{material.title}</h1>
           <p className="text-[17px] text-muted mt-2">By {material.author || "Unknown Author"}</p>
 
           <div className="mt-8 border-t border-line">
-            <DetailRow label="Format" value={material.file_type?.split('/')[1]?.toUpperCase() || "FILE"} divider />
+            <DetailRow label="Format" value={getReadableFormat(material.file_type)} divider />
             <DetailRow label="Description" value={material.description || "No description provided."} layout="stacked" divider />
           </div>
 
-                  {/* ACTION BUTTONS */}
+          {/* ACTION BUTTONS */}
           <div className="mt-8 flex flex-wrap gap-4">
             {isPDF && (
               <Button onClick={() => setIsReading(true)} leftIcon={<BookOpen size={16}/>}>Read Document</Button>
@@ -79,13 +130,15 @@ export default function MaterialDetails() {
               <Button onClick={() => setIsReading(true)} leftIcon={<PlayCircle size={16}/>}>Watch Video</Button>
             )}
 
-            {/* ADD THIS IMAGE BUTTON */}
             {isImage && (
               <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<BookOpen size={16}/>}>View Image</Button>
             )}
 
-            {/* MAKE SURE TO ADD !isImage HERE SO IT DOESN'T SHOW BOTH BUTTONS */}
-            {(!isPDF && !isEPUB && !isAudio && !isVideo && !isImage) && (
+            {isOffice && (
+              <Button onClick={() => setIsReading(true)} leftIcon={<FileText size={16}/>}>View Document</Button>
+            )}
+
+            {(!isPDF && !isEPUB && !isAudio && !isVideo && !isImage && !isOffice) && (
               <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download File</Button>
             )}
           </div>
@@ -96,10 +149,8 @@ export default function MaterialDetails() {
       {isReading && (
         <div className="fixed inset-0 bg-deep/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           
-          {/* The modal is narrower for Audio/Video, and wider for PDFs */}
           <div className={`bg-white w-full ${isAudio || isVideo ? 'max-w-2xl' : 'max-w-6xl h-full'} rounded-xl flex flex-col overflow-hidden shadow-2xl`}>
             
-            {/* Modal Header */}
             <div className="bg-ink px-6 py-4 flex justify-between items-center text-white shrink-0">
               <h3 className="font-semibold font-serif truncate pr-4">{material.title}</h3>
               <button onClick={() => setIsReading(false)} className="hover:bg-white/20 p-2 rounded-md transition shrink-0">
@@ -107,7 +158,6 @@ export default function MaterialDetails() {
               </button>
             </div>
             
-            {/* Modal Body */}
             {isAudio ? (
               <div className="p-8 flex flex-col items-center justify-center bg-mint-soft">
                 {material.image_url && <img src={material.image_url} className="h-48 w-48 object-cover rounded-lg shadow-lg mb-8" />}
@@ -135,12 +185,18 @@ export default function MaterialDetails() {
                 <p className="text-muted mb-8 text-center max-w-md">Browsers cannot display EPUB files natively. Group C will build a custom EPUB reader here later. For now, you can download the file to read it.</p>
                 <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<Download size={16}/>}>Download EPUB</Button>
               </div>
+            ) : isOffice ? (
+              <iframe 
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(material.file_url)}`} 
+                className="w-full flex-1 border-0 bg-white" 
+                title={material.title} 
+              />
             ) : (
               <iframe 
-  src={`https://docs.google.com/viewer?url=${encodeURIComponent(material.file_url)}&embedded=true`} 
-  className="w-full flex-1 border-0 bg-white" 
-  title={material.title} 
-/>
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(material.file_url)}&embedded=true`} 
+                className="w-full flex-1 border-0 bg-white" 
+                title={material.title} 
+              />
             )}
           </div>
         </div>

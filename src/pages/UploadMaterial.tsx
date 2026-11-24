@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import { PageHeader, Button, ToastNotification, SectionHeader } from "../shared";
@@ -11,7 +11,28 @@ export default function UploadMaterial() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<"info" | "success" | "error">("info");
 
-  const [formData, setFormData] = useState({ title: "", author: "", description: "" });
+  // State to hold the categories fetched from Supabase
+  const [categories, setCategories] = useState<any[]>([]);
+
+  const [formData, setFormData] = useState({ 
+    title: "", 
+    author: "", 
+    description: "", 
+    category_id: "" //
+  });
+
+  // Fetch the real UUIDs from your categories table on page load
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data} = await supabase.from("categories").select("id, name");
+      if (data && data.length > 0) {
+        setCategories(data);
+        // Set default category to the first one in the database
+        setFormData((prev) => ({ ...prev, category_id: data[0].id }));
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,25 +48,34 @@ export default function UploadMaterial() {
       formPayload.append("pdfFile", pdfFile);
       if (coverImage) formPayload.append("coverImage", coverImage);
       
-     const res = await fetch(`${(import.meta.env.VITE_API_BASE_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/upload`, { 
-  method: "POST", 
-  body: formPayload 
-});
-      const uploadData = await res.json();
-      if (!res.ok) throw new Error(uploadData.error);
-
-      await supabase.from("materials").insert({
-        title: formData.title, 
-        author: formData.author, 
-        description: formData.description,
-        file_name: pdfFile.name, 
-        file_type: pdfFile.type || "application/pdf", 
-        file_size: pdfFile.size,
-        file_url: uploadData.url, 
-        image_url: uploadData.coverUrl, 
-        status: "published"
+      const res = await fetch(`${(import.meta.env.VITE_API_BASE_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/upload`, { 
+        method: "POST", 
+        body: formPayload 
       });
 
+      const uploadData = await res.json();
+      if (!res.ok) throw new Error(uploadData.error);
+      // Insert into Supabase, checking for errors
+      const { error: insertError } = await supabase
+        .from("materials")
+        .insert({
+          title: formData.title, 
+          author: formData.author, 
+          description: formData.description,
+          category_id: formData.category_id, 
+          file_name: pdfFile.name, 
+          file_type: pdfFile.type || "application/pdf", 
+          file_size: pdfFile.size,
+          file_url: uploadData.url, 
+          image_url: uploadData.coverUrl, 
+          status: "published"
+        });
+
+      if (insertError) {
+        console.error(" DATABASE INSERT FAILED:", insertError);
+        throw new Error(insertError.message); 
+      }
+    
       setToastMessage("Material uploaded successfully!");
       setToastVariant("success");
       setTimeout(() => navigate("/manage"), 1500);
@@ -63,16 +93,13 @@ export default function UploadMaterial() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-serif pb-20">
       
-            {/* DEEP GREEN HEADER with Background Books */}
+      {/* DEEP GREEN HEADER with Background Books */}
       <div className="relative bg-deep text-white w-full overflow-hidden">
-        
-        {/* Background Image with Fade */}
         <div 
           className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-30 mix-blend-luminosity" 
           style={{ maskImage: 'linear-gradient(to left, black, transparent)' }}
         ></div>
 
-        {/* Content Container */}
         <div className="relative z-10 max-w-[1312px] mx-auto px-8 py-10">
           <PageHeader 
             title="Upload Material" 
@@ -101,6 +128,23 @@ export default function UploadMaterial() {
                   <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Author</label>
                   <input type="text" className={inputClass} placeholder="e.g. Thomas H. Cormen" onChange={(e) => setFormData({...formData, author: e.target.value})} />
                 </div>
+                
+                {/* UPDATED CATEGORY DROPDOWN */}
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Category</label>
+                  <select 
+                    className={inputClass + " cursor-pointer"}
+                    value={formData.category_id}
+                    onChange={(e) => setFormData({...formData, category_id: e.target.value})}
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Description</label>
                   <textarea className={inputClass + " h-24 resize-none"} placeholder="Provide a brief summary..." onChange={(e) => setFormData({...formData, description: e.target.value})} />
@@ -118,8 +162,8 @@ export default function UploadMaterial() {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-2">Material File <span className="text-rose-text">*</span></label>
-                  <input type="file" accept=".pdf,.epub,.mp3,.mp4,.jpg,.jpeg,.png" className="w-full text-[15px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2.5 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
-                  <p className="text-[13px] text-muted mt-2">Supported: PDF, EPUB, MP3, JPG, PNG, MP4</p>
+                  <input type="file" accept=".pdf,.epub,.mp3,.mp4,.jpg,.jpeg,.png,.docx,.pptx" className="w-full text-[15px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2.5 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+                  <p className="text-[13px] text-muted mt-2">Supported: PDF, EPUB, MP3, JPG, PNG, MP4, DOCX, PPTX</p>
                 </div>
               </div>
             </section>

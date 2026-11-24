@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Search, SlidersHorizontal, PlayCircle, Headphones, Book, Bell, FileText, Video, X } from "lucide-react";
+import { BookOpen, Search, SlidersHorizontal, PlayCircle, Headphones, Book, Bell, FileText, Video, X, Briefcase } from "lucide-react";
 import { supabase } from "../supabase";
 
 export default function Catalogue() {
@@ -25,6 +25,7 @@ export default function Catalogue() {
       if (data) setMaterials(data);
       setIsLoading(false);
     };
+    
     fetchMaterials();
   }, []);
 
@@ -146,7 +147,7 @@ export default function Catalogue() {
       {/* MAIN FEED */}
       <main className="max-w-[1200px] mx-auto px-8 py-10 w-full flex-1 space-y-12">
         
-        {/* SECTION 1: BOOKS */}
+        {/* SECTION 1: BOOKS & E-BOOKS */}
         <section>
           <div className="flex items-center justify-between mb-6 border-b border-[#E2E8F0] pb-4">
             <div>
@@ -166,29 +167,84 @@ export default function Catalogue() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {isLoading ? <p className="text-[#64748B] col-span-3">Loading...</p> : 
-              filtered.filter(m => m.file_type?.includes('pdf') || m.file_type?.includes('epub')).map((mat) => (
-                <Link to={`/material/${mat.id}`} key={mat.id} className="group border border-[#E2E8F0] bg-white rounded-lg overflow-hidden hover:shadow-md transition flex flex-col">
-                  <div className="h-48 bg-[#F1F5F9] relative overflow-hidden">
-                    {mat.image_url ? <img src={mat.image_url} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center"><BookOpen size={40}/></div>}
-                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                      {mat.file_type?.includes('epub') ? <><BookOpen size={14} className="text-[#0B7A63]"/> EPUB</> : <><FileText size={14} className="text-red-500"/> PDF</>}
+              filtered.filter(m => m.file_type?.includes('pdf') || m.file_type?.includes('epub')).length === 0 ? (
+                <p className="text-[#64748B] col-span-3">No books or e-books found.</p>
+              ) : (
+                filtered.filter(m => m.file_type?.includes('pdf') || m.file_type?.includes('epub')).map((mat) => (
+                  <Link to={`/material/${mat.id}`} key={mat.id} className="group border border-[#E2E8F0] bg-white rounded-lg overflow-hidden hover:shadow-md transition flex flex-col">
+                    <div className="h-48 bg-[#F1F5F9] relative overflow-hidden">
+                      {mat.image_url ? <img src={mat.image_url} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center"><BookOpen size={40}/></div>}
+                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        {mat.file_type?.includes('epub') ? <><BookOpen size={14} className="text-[#0B7A63]"/> EPUB</> : <><FileText size={14} className="text-red-500"/> PDF</>}
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-5 flex flex-col flex-1">
-                    <h3 className="text-[20px] font-serif text-[#0F172A] leading-tight mb-1">{mat.title}</h3>
-                    <p className="text-[14px] text-[#64748B] mb-4">{mat.author}</p>
-                    <div className="flex justify-between text-[13px] border-t pt-4 mt-auto">
-                      <span className="text-[#64748B]">{mat.file_size ? `${(mat.file_size / 1024 / 1024).toFixed(1)} MB` : ''}</span>
-                      <span className="text-[#0A3D42] font-semibold">Open &rarr;</span>
+                    <div className="p-5 flex flex-col flex-1">
+                      <h3 className="text-[20px] font-serif text-[#0F172A] leading-tight mb-1">{mat.title}</h3>
+                      <p className="text-[14px] text-[#64748B] mb-4">{mat.author}</p>
+                      <div className="flex justify-between text-[13px] border-t pt-4 mt-auto">
+                        <span className="text-[#64748B]">{mat.file_size ? `${(mat.file_size / 1024 / 1024).toFixed(1)} MB` : ''}</span>
+                        <span className="text-[#0A3D42] font-semibold">Open &rarr;</span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))
+                  </Link>
+                ))
+              )
             }
           </div>
         </section>
 
-        {/* SECTION 2: AUDIO */}
+        {/* SECTION 2: DOCUMENTS & PRESENTATIONS (NEW) */}
+        <section>
+          <div className="flex items-center justify-between mb-6 border-b border-[#E2E8F0] pb-4">
+            <div>
+              <h2 className="text-[28px] font-serif text-[#0F172A]">Documents & Presentations</h2>
+              <p className="text-[#64748B] mt-1 text-[14px]">View Word documents (DOCX) and PowerPoint presentations (PPTX).</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {isLoading ? <p className="text-[#64748B] col-span-3">Loading...</p> : 
+              filtered.filter(m => 
+                m.file_type?.includes('docx') || 
+                m.file_type?.includes('doc') || 
+                m.file_type?.includes('pptx') || 
+                m.file_type?.includes('ppt')
+              ).length === 0 ? (
+                <p className="text-[#64748B] col-span-3">No documents or presentations yet.</p>
+              ) : (
+                filtered.filter(m => 
+                  m.file_type?.includes('docx') || 
+                  m.file_type?.includes('doc') || 
+                  m.file_type?.includes('pptx') || 
+                  m.file_type?.includes('ppt')
+                ).map((mat) => (
+                  <Link to={`/material/${mat.id}`} key={mat.id} className="group border border-[#E2E8F0] bg-white rounded-lg overflow-hidden hover:shadow-md transition flex flex-col">
+                    <div className="h-48 bg-[#F1F5F9] relative overflow-hidden">
+                      {mat.image_url ? <img src={mat.image_url} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center"><Briefcase size={40}/></div>}
+                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        {mat.file_type?.includes('doc') ? (
+                          <><FileText size={14} className="text-blue-600"/> DOCX</>
+                        ) : (
+                          <><Briefcase size={14} className="text-orange-500"/> PPTX</>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-5 flex flex-col flex-1">
+                      <h3 className="text-[20px] font-serif text-[#0F172A] leading-tight mb-1">{mat.title}</h3>
+                      <p className="text-[14px] text-[#64748B] mb-4">{mat.author}</p>
+                      <div className="flex justify-between text-[13px] border-t pt-4 mt-auto">
+                        <span className="text-[#64748B]">{mat.file_size ? `${(mat.file_size / 1024 / 1024).toFixed(1)} MB` : ''}</span>
+                        <span className="text-[#0A3D42] font-semibold">Open &rarr;</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              )
+            }
+          </div>
+        </section>
+
+        {/* SECTION 3: AUDIO */}
         <section>
           <div className="flex items-center justify-between mb-6 border-b border-[#E2E8F0] pb-4">
             <div>
@@ -217,7 +273,7 @@ export default function Catalogue() {
           </div>
         </section>
 
-        {/* SECTION 3: VIDEOS */}
+        {/* SECTION 4: VIDEOS */}
         <section>
           <div className="flex items-center justify-between mb-6 border-b border-[#E2E8F0] pb-4">
             <div>
@@ -253,7 +309,7 @@ export default function Catalogue() {
           </div>
         </section>
 
-        {/* SECTION 4: IMAGES */}
+        {/* SECTION 5: IMAGES */}
         <section>
           <div className="flex items-center justify-between mb-6 border-b border-[#E2E8F0] pb-4">
             <div>
