@@ -1,29 +1,48 @@
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
+@import '@fontsource-variable/newsreader/opsz.css';
 @import "tailwindcss";
 
 @theme {
-  --color-deep: #05201E;
-  --color-ink: #092F2C;
-  --color-brand: #0B7A63;
-  --color-brand-text: #0F5A50;
-  
-  --color-page: #EFFAF7;
-  --color-mint: #E3F3EF;
-  --color-mint-soft: #F3FBF9;
-  --color-badge: #B0EFE5;
-  
-  --color-muted: #6A7F7B;
-  --color-line: #DBE9E5;
-  
-  --color-rose-bg: #FDE4E4;
-  --color-rose-text: #B4232A;
+  /* Newsreader is the single LORIS typeface; hierarchy comes from size, weight and case. */
+  --font-sans: "Newsreader Variable", Georgia, "Times New Roman", serif;
+  --font-serif: "Newsreader Variable", Georgia, "Times New Roman", serif;
 
-  --font-sans: "Newsreader", Georgia, serif;
-  --font-serif: "Newsreader", Georgia, serif;
+  --color-ink: #092f2c;
+  --color-deep: #05201e;
+  --color-page: #effaf7;
+  --color-mint: #e3f3ef;
+  --color-mint-soft: #f3fbf9;
+  --color-badge: #b0efe5;
+  --color-brand: #0b7a63;
+  --color-brand-text: #0f5a50;
+  --color-muted: #6a7f7b;
+  --color-line: #dbe9e5;
+  --color-rose-bg: #fde4e4;
+  --color-rose-text: #b4232a;
 }
 
+@layer base {
+html, body, #root { min-height: 100%; }
 body {
-  background-color: var(--color-page);
+  margin: 0;
+  font-family: var(--font-sans);
   color: var(--color-deep);
-  font-family: var(--font-serif);
+  background: var(--color-page);
+  -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+  overflow-x: hidden;
 }
+button { font-family: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+}
+
+
+/* Printing is disabled: print/PDF output shows only a notice. */
+@media print {
+  body * { display: none !important; }
+  body::before { content: "Printing LORIS content is not permitted."; display: block; padding: 2rem; font-size: 1.25rem; }
+}
+/* Discourage image dragging/saving. */
+img { -webkit-user-drag: none; }

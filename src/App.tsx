@@ -1,66 +1,62 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { BookOpen, Folder, Lightbulb, Users, ChevronRight, LayoutGrid } from "lucide-react";
-import { Button } from "./shared";
+import { Navigate, Route, Routes } from 'react-router-dom';
+import LandingPage from './modules/group-a/pages/LandingPage';
+import AccountTypeSelect from './modules/group-a/pages/AccountTypeSelect';
+import Login from './modules/group-a/pages/auth/Login';
+import Register from './modules/group-a/pages/auth/Register';
+import ForgotPassword from './modules/group-a/pages/auth/ForgotPassword';
+import ResetPassword from './modules/group-a/pages/auth/ResetPassword';
+import { GlobalLayout, PublicOnly, RequireRole } from './components/layout/GlobalLayout';
+import Catalogue from './modules/group-b/pages/Catalogue';
+import MaterialDetails from './modules/group-b/pages/MaterialDetails';
+import OrganisationOverview from './modules/group-b/pages/OrganisationOverview';
+import ManageMaterials from './modules/group-b/pages/ManageMaterials';
+import Members from './modules/group-b/pages/Members';
+import UploadMaterial from './modules/group-b/pages/UploadMaterial';
+import Dashboard from './modules/group-c/pages/user/Dashboard';
+import Favourites from './modules/group-c/pages/user/Favourites';
+import NotesAndBookmarks from './modules/group-c/pages/user/NotesAndBookmarks';
+import Profile from './modules/group-c/pages/user/Profile';
+import Settings from './modules/group-c/pages/user/Settings';
+import Support from './modules/group-c/pages/user/Support';
+import Reader from './modules/group-c/pages/user/Reader';
+import OfflineLibrary from './pages/user/OfflineLibrary';
+import OfflineDownloads from './modules/group-c/pages/user/OfflineLibrary';
+import ComponentShowcase from './pages/dev/ComponentShowcase';
+import PlatformDashboard from './pages/platform/PlatformDashboard';
+import { OrganisationRegistration } from './modules/nathan/pages/public/OrganisationRegistration';
 
 export default function App() {
-  const location = useLocation();
+  return <Routes>
+    <Route path="/" element={<LandingPage />} />
+    <Route path="/personal/login" element={<PublicOnly><Login /></PublicOnly>} />
+    <Route path="/organisation/login" element={<PublicOnly adminOnly><Login /></PublicOnly>} />
+    <Route path="/personal/register" element={<PublicOnly><Register /></PublicOnly>} />
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/organisation-registration" element={<OrganisationRegistration />} />
+    <Route path="/login" element={<PublicOnly><AccountTypeSelect mode="login" /></PublicOnly>} />
+    <Route path="/register" element={<PublicOnly><AccountTypeSelect mode="register" /></PublicOnly>} />
 
-  const navItem = (to: string, label: string, icon: React.ReactNode) => {
-    const active = location.pathname === to;
-    return (
-      <Link to={to} className={`flex items-center gap-3 px-4 py-2.5 text-[15px] rounded-md transition-colors ${active ? 'bg-[#0B7A63] text-white font-semibold' : 'text-[#E3F3EF] hover:bg-white/10'}`}>
-        {icon} {label}
-      </Link>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-page font-serif flex">
-      
-      {/* PERMANENT SIDEBAR */}
-      <aside className="w-[260px] bg-ink text-white flex flex-col fixed h-screen border-r border-white/10">
-        <div className="p-6 flex items-center gap-2 border-b border-white/10">
-          <div className="bg-white text-ink p-1.5 rounded-md"><LayoutGrid className="h-5 w-5" /></div>
-          <span className="font-semibold text-lg tracking-tight">Atlas Institute</span>
-        </div>
-
-        {/* Added pb-24 here to give space at the bottom */}
-        <div className="p-4 flex-1 overflow-y-auto space-y-8 pb-24">
-          {/* Workspace */}
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2 px-4">Your workspace</p>
-            <div className="mb-2 px-4 text-[13px] text-white/70">The shared shelf</div>
-            <nav className="space-y-1">
-              {navItem("/", "Browse library", <BookOpen size={18} />)}
-              {navItem("/manage", "Admin Dashboard", <Users size={18} />)}
-              {navItem("/upload", "Upload Material", <Folder size={18} />)}
-            </nav>
-          </div>
-
-          {/* Collections */}
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2 px-4">Collections</p>
-            <nav className="space-y-1">
-              {navItem("/reading", "The reading room", <BookOpen size={18} />)}
-              {navItem("/ideas", "Ideas & inspiration", <Lightbulb size={18} />)}
-            </nav>
-          </div>
-        </div>
-
-        {/* Sidebar Promo - Now safely at the bottom */}
-        <div className="p-4 mt-auto">
-          <div className="rounded-lg bg-[#0B7A63] p-4 text-white">
-            <h3 className="font-serif text-lg leading-tight mb-1">A little curiosity. A new perspective.</h3>
-            <p className="text-xs text-white/80 mb-4">Explore the reading room, selected by your library.</p>
-            <Button variant="text" tone="inverse" className="text-xs px-0">Discover the collection <ChevronRight size={14} /></Button>
-          </div>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 ml-[260px] flex flex-col">
-        <Outlet />
-      </main>
-    </div>
-  );
+    <Route element={<GlobalLayout />}>
+      <Route path="/dashboard" element={<RequireRole role="end_user"><Dashboard /></RequireRole>} />
+      <Route path="/catalogue" element={<Catalogue />} />
+      <Route path="/material/:id" element={<MaterialDetails />} />
+      <Route path="/user/my-library" element={<RequireRole role="end_user"><Favourites /></RequireRole>} />
+      <Route path="/user/favourites" element={<RequireRole role="end_user"><Favourites /></RequireRole>} />
+      <Route path="/user/notes-bookmarks" element={<RequireRole role="end_user"><NotesAndBookmarks /></RequireRole>} />
+      <Route path="/user/profile" element={<RequireRole role="end_user"><Profile /></RequireRole>} />
+      <Route path="/user/settings" element={<RequireRole role="end_user"><Settings /></RequireRole>} />
+      <Route path="/user/support" element={<RequireRole role="end_user"><Support /></RequireRole>} />
+      <Route path="/user/reader/:id" element={<RequireRole role="end_user"><Reader /></RequireRole>} />
+      <Route path="/offline-library" element={<RequireRole role="end_user"><OfflineLibrary /></RequireRole>} />
+      <Route path="/offline-library/downloads" element={<RequireRole role="end_user"><OfflineDownloads /></RequireRole>} />
+      <Route path="/manage" element={<RequireRole role="admin"><OrganisationOverview /></RequireRole>} />
+      <Route path="/manage/materials" element={<RequireRole role="admin"><ManageMaterials /></RequireRole>} />
+      <Route path="/manage/members" element={<RequireRole role="admin"><Members /></RequireRole>} />
+      <Route path="/upload" element={<RequireRole role="admin"><UploadMaterial /></RequireRole>} />
+      <Route path="/platform" element={<RequireRole role="platform_manager"><PlatformDashboard /></RequireRole>} />
+      <Route path="/showcase" element={<ComponentShowcase />} />
+    </Route>
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>;
 }
