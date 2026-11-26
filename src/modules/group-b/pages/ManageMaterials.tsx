@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../supabase";
+import { supabase } from "../../../supabase";
 import { useAuth } from "../../group-a/contexts/AuthContext";
 import { getUploadAuthContext, getUploadApiBaseUrl } from "../services/uploadAuth";
 import { 
   PageHeader, DataTable, Button, StatusBadge, 
   ConfirmationDialog, ToastNotification, SearchBar, Modal
-} from "../shared";
+} from "../../../shared";
 import { FileText, Video, Headphones, Image as ImageIcon } from "lucide-react";
 
 export default function ManageMaterials() {
@@ -22,6 +22,7 @@ export default function ManageMaterials() {
   const [editTitle, setEditTitle] = useState("");
   const [editAuthor, setEditAuthor] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState(""); // Added category state
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -98,6 +99,7 @@ export default function ManageMaterials() {
     setEditTitle(mat.title);
     setEditAuthor(mat.author || "");
     setEditDescription(mat.description || "");
+    setEditCategory(mat.category_id || "Spiritual Materials"); // Set category on edit
     setEditImageFile(null); 
   };
 
@@ -135,6 +137,7 @@ export default function ManageMaterials() {
           title: editTitle, 
           author: editAuthor, 
           description: editDescription,
+          category_id: editCategory, // Save the category
           image_url: newImageUrl 
         })
         .eq("id", editingMaterial.id);
@@ -235,7 +238,7 @@ export default function ManageMaterials() {
         </div>
       </main>
 
-      {/* EDIT MODAL - Wrapped carefully so it only renders when a material is selected */}
+      {/* EDIT MODAL */}
       {editingMaterial && (
         <Modal 
           open={true} 
@@ -249,7 +252,7 @@ export default function ManageMaterials() {
             </>
           }
         >
-          <div className="space-y-5 pt-4">
+          <div className="space-y-5 pt-4 max-h-[60vh] overflow-y-auto pr-2">
             <div>
               <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Title</label>
               <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep transition-colors" />
@@ -258,6 +261,25 @@ export default function ManageMaterials() {
             <div>
               <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Author</label>
               <input type="text" value={editAuthor} onChange={(e) => setEditAuthor(e.target.value)} className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep transition-colors" />
+            </div>
+
+            {/* EDIT CATEGORY DROPDOWN */}
+            <div>
+              <label className="block text-[13px] font-semibold uppercase tracking-widest text-muted mb-2">Category</label>
+              <select 
+                value={editCategory} 
+                onChange={(e) => setEditCategory(e.target.value)} 
+                className="w-full border-b border-line bg-transparent py-2 text-[16px] text-deep outline-none focus:border-deep transition-colors cursor-pointer"
+              >
+                <option value="Spiritual Materials">Spiritual Materials</option>
+                <option value="Educational Materials">Educational Materials</option>
+                <option value="History and Culture">History and Culture</option>
+                <option value="Journals">Journals</option>
+                <option value="Novels">Novels</option>
+                <option value="Science and Technology">Science and Technology</option>
+                <option value="Children's Books">Children's Books</option>
+                <option value="Entrepreneurship">Entrepreneurship</option>
+              </select>
             </div>
 
             <div>

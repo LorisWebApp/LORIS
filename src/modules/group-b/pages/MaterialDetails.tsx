@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../supabase";
 import { useAuth } from "../../group-a/contexts/AuthContext";
-import { BookOpen, X, PlayCircle, Headphones } from "lucide-react";
+import { BookOpen, X, PlayCircle, Headphones, FileText} from "lucide-react";
 import { PageHeader, Button, DetailRow, StatusBadge } from "../shared";
 
 export default function MaterialDetails() {
@@ -19,10 +19,48 @@ export default function MaterialDetails() {
   if (!material) return <div className="p-10 text-center text-muted font-serif">Loading...</div>;
 
   const fileType = material.file_type ? material.file_type.toLowerCase() : "";
-  const isAudio = fileType.includes("audio") || fileType.includes("mp3");
-  const isVideo = fileType.includes("video") || fileType.includes("mp4");
-  const isPDF = fileType.includes("pdf");
-  const isEPUB = fileType.includes("epub");
+  const fileUrl = material.file_url ? material.file_url.toLowerCase() : "";
+
+  // Check file_type OR the file_url ending to see what it is
+  const isAudio = fileType.includes("audio") || fileType.includes("mp3") || fileUrl.endsWith('.mp3');
+  const isVideo = fileType.includes("video") || fileType.includes("mp4") || fileUrl.endsWith('.mp4');
+  const isPDF = fileType.includes("pdf") || fileUrl.endsWith('.pdf');
+  const isEPUB = fileType.includes("epub") || fileUrl.endsWith('.epub');
+  const isImage = 
+    fileType.includes("image") || 
+    fileType.includes("jpg") || 
+    fileType.includes("jpeg") || 
+    fileType.includes("png") ||
+    fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) !== null;
+    
+  const isOffice = 
+    fileType.includes("presentationml") || 
+    fileType.includes("wordprocessingml") || 
+    fileType.includes("docx") || 
+    fileType.includes("pptx") ||
+    fileUrl.endsWith('.docx') ||
+    fileUrl.endsWith('.pptx');
+
+  const getReadableFormat = (type: string, url: string) => {
+    if (type) {
+      if (type.includes("pdf")) return "PDF";
+      if (type.includes("epub")) return "EPUB";
+      if (type.includes("presentationml") || type.includes("pptx")) return "PRESENTATION (PPTX)";
+      if (type.includes("wordprocessingml") || type.includes("docx")) return "WORD DOCUMENT (DOCX)";
+      if (type.includes("audio")) return "AUDIO";
+      if (type.includes("video")) return "VIDEO";
+      if (type.includes("image")) return "IMAGE";
+      return type.split('/')[1]?.toUpperCase() || "FILE";
+    }
+    if (url.endsWith('.pdf')) return "PDF";
+    if (url.endsWith('.epub')) return "EPUB";
+    if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return "IMAGE";
+    if (url.endsWith('.mp3')) return "AUDIO";
+    if (url.endsWith('.mp4')) return "VIDEO";
+    if (url.endsWith('.docx')) return "WORD DOCUMENT (DOCX)";
+    if (url.endsWith('.pptx')) return "PRESENTATION (PPTX)";
+    return "FILE";
+  };
 
   return (
     <div className="min-h-screen bg-page font-serif pb-20">
@@ -55,7 +93,7 @@ export default function MaterialDetails() {
           <p className="text-[17px] text-muted mt-2">By {material.author || "Unknown Author"}</p>
 
           <div className="mt-8 border-t border-line">
-            <DetailRow label="Format" value={material.file_type?.split('/')[1]?.toUpperCase() || "FILE"} divider />
+            <DetailRow label="Format" value={getReadableFormat(material.file_type, material.file_url)} divider />
             <DetailRow label="Description" value={material.description || "No description provided."} layout="stacked" divider />
           </div>
 
@@ -88,7 +126,15 @@ export default function MaterialDetails() {
               <Button onClick={() => setIsReading(true)} leftIcon={<PlayCircle size={16}/>}>Watch Video</Button>
             )}
 
-            {(!isPDF && !isEPUB && !isAudio && !isVideo) && (
+            {isImage && (
+              <Button onClick={() => window.open(material.file_url, '_blank')} leftIcon={<BookOpen size={16}/>}>View Image</Button>
+            )}
+
+            {isOffice && (
+              <Button onClick={() => setIsReading(true)} leftIcon={<FileText size={16}/>}>View Document</Button>
+            )}
+
+            {(!isPDF && !isEPUB && !isAudio && !isVideo && !isImage && !isOffice) && (
               <p className="text-sm text-muted">This file type cannot be viewed online.</p>
             )}
           </div>
@@ -99,10 +145,8 @@ export default function MaterialDetails() {
       {user && isReading && (
         <div className="fixed inset-0 bg-deep/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           
-          {/* The modal is narrower for Audio/Video, and wider for PDFs */}
           <div className={`bg-white w-full ${isAudio || isVideo ? 'max-w-2xl' : 'max-w-6xl h-full'} rounded-xl flex flex-col overflow-hidden shadow-2xl`}>
             
-            {/* Modal Header */}
             <div className="bg-ink px-6 py-4 flex justify-between items-center text-white shrink-0">
               <h3 className="font-semibold font-serif truncate pr-4">{material.title}</h3>
               <button onClick={() => setIsReading(false)} className="hover:bg-white/20 p-2 rounded-md transition shrink-0">
@@ -110,7 +154,6 @@ export default function MaterialDetails() {
               </button>
             </div>
             
-            {/* Modal Body */}
             {isAudio ? (
               <div className="p-8 flex flex-col items-center justify-center bg-mint-soft">
                 {material.image_url && <img src={material.image_url} className="h-48 w-48 object-cover rounded-lg shadow-lg mb-8" />}
@@ -140,6 +183,12 @@ export default function MaterialDetails() {
                 <h2 className="text-2xl font-serif text-deep mb-2">EPUB Reader</h2>
                 <p className="text-muted mb-8 text-center max-w-md">An in-app EPUB reader is not available yet. EPUB files cannot be downloaded from LORIS.</p>
               </div>
+            ) : isOffice ? (
+              <iframe 
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(material.file_url)}`} 
+                className="w-full flex-1 border-0 bg-white" 
+                title={material.title} 
+              />
             ) : (
               <iframe src={`${material.file_url}#toolbar=0&navpanes=0&scrollbar=1`} className="w-full flex-1 border-0" title={material.title} />
             )}

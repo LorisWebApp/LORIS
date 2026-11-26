@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Library, Users, Upload, Settings, WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Library, Users, Upload,  WifiOff, Heart, NotebookPen, UserRound, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../modules/group-a/contexts/AuthContext';
 import { AssistantProvider } from '../assistant/AssistantProvider';
 import { AssistantWidget } from '../assistant/AssistantWidget';
@@ -29,14 +29,15 @@ export function GlobalLayout() {
       { to: '/platform', label: 'Platform dashboard', icon: LayoutDashboard },
       { to: '/catalogue', label: 'Catalogue', icon: Library },
     ];
-    if (isOrgAdmin) return [
-      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+
+       if (isOrgAdmin) return [
+      { to: '/manage', label: 'Dashboard', icon: LayoutDashboard, end: true },
       { to: '/catalogue', label: 'Catalogue', icon: Library },
-      { to: '/manage', label: 'Library management', icon: BookOpen },
-      { to: '/manage/materials', label: 'Materials', icon: Settings },
+      { to: '/manage/materials', label: 'Library Management', icon: BookOpen },
       { to: '/manage/members', label: 'Members', icon: Users },
       { to: '/upload', label: 'Upload', icon: Upload },
     ];
+
     return [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/catalogue', label: 'Catalogue', icon: Library },

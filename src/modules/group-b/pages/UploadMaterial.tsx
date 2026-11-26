@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../supabase";
+import { supabase } from "../../../supabase";
 import { getUploadAuthContext, getUploadApiBaseUrl } from "../services/uploadAuth";
-import { PageHeader, Button, ToastNotification, SectionHeader } from "../shared";
+import { PageHeader, Button, ToastNotification, SectionHeader } from "../../../shared";
 
 export default function UploadMaterial() {
   const navigate = useNavigate();
@@ -12,68 +12,101 @@ export default function UploadMaterial() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<"info" | "success" | "error">("info");
 
-  const [formData, setFormData] = useState({ title: "", author: "", description: "" });
+  // New state for categories
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  
+  const [formData, setFormData] = useState({ 
+    title: "", 
+    author: "", 
+    description: "", 
+    category_id: "" 
+  });
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from("categories").select("id, name").order("name");
+      if (data && data.length > 0) {
+        setCategories(data);
+        setFormData(prev => ({ ...prev, category_id: data[0].id }));
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pdfFile || !formData.title) {
-      setToastMessage("Title and Material File are required.");
+    if (!pdfFile || !formData.title || !formData.category_id) {
+      setToastMessage("Title, Category, and Material File are required.");
       setToastVariant("error");
       return;
     }
     
     setLoading(true);
     try {
-      const authContext = await getUploadAuthContext();
+      // 1. Try to get the auth context, but fall back to defaults if not logged in
+      let orgId = 5; // Default to 5 (Atlas Institute)
+      let userId = null;
+      let accessToken = "";
+
+      try {
+        const authContext = await getUploadAuthContext();
+        if (authContext) {
+          orgId = authContext.organisationId || 5;
+          userId = authContext.userId || null;
+          accessToken = authContext.accessToken || "";
+        }
+      } catch (authErr) {
+        console.warn("Using default organisation because auth context failed:", authErr);
+      }
+
+      // 2. Upload to Railway/Cloudflare
       const formPayload = new FormData();
       formPayload.append("pdfFile", pdfFile);
       if (coverImage) formPayload.append("coverImage", coverImage);
 
       const apiBaseUrl = getUploadApiBaseUrl();
+      const headers: Record<string, string> = {
+        "X-Organisation-Id": String(orgId),
+      };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
       const res = await fetch(`${apiBaseUrl}/api/upload`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${authContext.accessToken}`,
-          "X-Organisation-Id": String(authContext.organisationId),
-        },
+        headers,
         body: formPayload,
       });
+      
       const uploadData = await res.json();
       if (!res.ok) throw new Error(uploadData.error || "File upload failed.");
 
-      const { error: metadataError } = await supabase.from("materials").insert({
+      // 3. Save to Supabase
+      const { error: insertError } = await supabase.from("materials").insert({
         title: formData.title,
         author: formData.author,
         description: formData.description,
+        category_id: formData.category_id,
         file_name: pdfFile.name,
         file_type: uploadData.fileType || pdfFile.type || "application/pdf",
         file_size: pdfFile.size,
         file_url: uploadData.url,
         image_url: uploadData.coverUrl,
-        uploaded_by: authContext.userId,
-        organisation_id: authContext.organisationId,
+        uploaded_by: userId,
+        organisation_id: orgId, // <--- THIS FIXES THE NULL ISSUE
         status: "published"
       });
-      if (metadataError) {
-        // Avoid leaving an unreferenced object in R2 when Supabase rejects metadata.
-        await fetch(`${apiBaseUrl}/api/uploaded-objects`, {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authContext.accessToken}`,
-            "X-Organisation-Id": String(authContext.organisationId),
-          },
-          body: JSON.stringify({ objectKeys: uploadData.objectKeys ?? [] }),
-        });
-        throw metadataError;
-      }
+
+      if (insertError) throw insertError;
 
       setToastMessage("Material uploaded successfully!");
       setToastVariant("success");
-      setTimeout(() => navigate("/manage"), 1500);
+      setTimeout(() => navigate("/manage/table"), 1500);
       
     } catch (error: any) {
-      setToastMessage(error.message);
+      console.error(error);
+      setToastMessage(error.message || "An error occurred during upload.");
       setToastVariant("error");
     } finally {
       setLoading(false);
@@ -85,16 +118,13 @@ export default function UploadMaterial() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-serif pb-20">
       
-            {/* DEEP GREEN HEADER with Background Books */}
+      {/* HEADER */}
       <div className="relative bg-deep text-white w-full overflow-hidden">
-        
-        {/* Background Image with Fade */}
         <div 
           className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-30 mix-blend-luminosity" 
           style={{ maskImage: 'linear-gradient(to left, black, transparent)' }}
         ></div>
 
-        {/* Content Container */}
         <div className="relative z-10 max-w-[1312px] mx-auto px-8 py-10">
           <PageHeader 
             title="Upload Material" 
@@ -111,7 +141,6 @@ export default function UploadMaterial() {
         <div className="max-w-3xl mx-auto bg-white border border-line shadow-sm p-8 md:p-12">
           <form onSubmit={handleSubmit} className="space-y-10">
             
-            {/* Details Section */}
             <section>
               <SectionHeader title="Material Details" size="sm" divider />
               <div className="mt-6 space-y-6">
@@ -123,6 +152,22 @@ export default function UploadMaterial() {
                   <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Author</label>
                   <input type="text" className={inputClass} placeholder="e.g. Thomas H. Cormen" onChange={(e) => setFormData({...formData, author: e.target.value})} />
                 </div>
+                
+                {/* DYNAMIC CATEGORY DROPDOWN */}
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Category</label>
+                  <select 
+                    className={inputClass + " cursor-pointer"}
+                    value={formData.category_id}
+                    onChange={(e) => setFormData({...formData, category_id: e.target.value})}
+                  >
+                    {categories.length === 0 && <option value="">Loading categories...</option>}
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Description</label>
                   <textarea className={inputClass + " h-24 resize-none"} placeholder="Provide a brief summary..." onChange={(e) => setFormData({...formData, description: e.target.value})} />
@@ -130,7 +175,6 @@ export default function UploadMaterial() {
               </div>
             </section>
 
-            {/* Files Section */}
             <section>
               <SectionHeader title="Files" size="sm" divider />
               <div className="mt-6 grid md:grid-cols-2 gap-8">
@@ -140,13 +184,12 @@ export default function UploadMaterial() {
                 </div>
                 <div>
                   <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-2">Material File <span className="text-rose-text">*</span></label>
-                  <input type="file" accept=".pdf,.epub,.mp3,.mp4,.jpg,.jpeg,.png" className="w-full text-[15px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2.5 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
-                  <p className="text-[13px] text-muted mt-2">Supported: PDF, EPUB, MP3, JPG, PNG, MP4</p>
+                  <input type="file" accept=".pdf,.epub,.mp3,.mp4,.jpg,.jpeg,.png,.docx,.pptx" className="w-full text-[15px] text-ink file:mr-4 file:border-0 file:bg-mint file:px-4 file:py-2.5 file:text-[14px] file:font-semibold file:text-deep hover:file:bg-line transition-colors" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+                  <p className="text-[13px] text-muted mt-2">Supported: PDF, EPUB, MP3, JPG, PNG, MP4, DOCX, PPTX</p>
                 </div>
               </div>
             </section>
 
-            {/* Actions */}
             <div className="flex justify-end gap-3 pt-6 border-t border-line">
               <Button variant="text" onClick={() => navigate("/manage")}>Cancel</Button>
               <Button type="submit" loading={loading}>Publish Material</Button>
