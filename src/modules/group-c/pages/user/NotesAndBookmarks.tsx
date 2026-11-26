@@ -1,5 +1,5 @@
-import { Pencil, Trash2 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { Pencil, Search, Trash2, X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 
 import { HIGHLIGHT_DOT } from "../../components/reader/highlightStyles";
 import { NoteEditorModal } from "../../components/reader/NoteEditorModal";
@@ -42,6 +42,16 @@ interface Row {
   createdAt: string;
 }
 
+interface SearchResult {
+  id: string;
+  kind: "Note" | "Highlight";
+  materialId: string;
+  materialTitle: string;
+  page: number;
+  content: string;
+  createdAt: string;
+}
+
 /**
  * Notes, bookmarks and highlights across every material.
  *
@@ -52,6 +62,7 @@ export function NotesAndBookmarks() {
   const annotations = useAnnotations();
 
   const [tab, setTab] = useState<Tab>("bookmarks");
+  const [searchTerm, setSearchTerm] = useState("");
   const [editing, setEditing] = useState<Note | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -64,6 +75,61 @@ export function NotesAndBookmarks() {
   const closeToast = useCallback(() => {
     setToast(null);
   }, []);
+
+  /**
+   * Searches the current user's notes and highlights.
+   *
+   * Matching is case-insensitive and includes material titles.
+   */
+  const searchResults = useMemo<SearchResult[]>(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    if (!term) return [];
+
+    const matchingNotes = annotations.notes
+      .filter((note) => {
+        const searchableText = [note.text, note.quote ?? "", note.materialTitle]
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(term);
+      })
+      .map(
+        (note): SearchResult => ({
+          id: note.id,
+          kind: "Note",
+          materialId: note.materialId,
+          materialTitle: note.materialTitle,
+          page: note.page,
+          content: note.text,
+          createdAt: note.createdAt,
+        }),
+      );
+
+    const matchingHighlights = annotations.highlights
+      .filter((highlight) => {
+        const searchableText = [highlight.text, highlight.materialTitle]
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(term);
+      })
+      .map(
+        (highlight): SearchResult => ({
+          id: highlight.id,
+          kind: "Highlight",
+          materialId: highlight.materialId,
+          materialTitle: highlight.materialTitle,
+          page: highlight.page,
+          content: highlight.text,
+          createdAt: highlight.createdAt,
+        }),
+      );
+
+    return [...matchingNotes, ...matchingHighlights].sort((first, second) =>
+      second.createdAt.localeCompare(first.createdAt),
+    );
+  }, [searchTerm, annotations.notes, annotations.highlights]);
 
   /**
    * Deletes the selected annotation after confirmation.
@@ -208,6 +274,45 @@ export function NotesAndBookmarks() {
       />
 
       <div className="mx-auto w-full max-w-[1312px] px-4 py-8 lg:px-10">
+        {/* Search personal notes and highlights */}
+        <div className="mb-6">
+          <label
+            htmlFor="annotation-search"
+            className="mb-2 block text-sm font-semibold text-ink"
+          >
+            Search your notes and highlights
+          </label>
+
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-white px-4 py-3 shadow-sm focus-within:border-ink">
+            <Search size={19} className="shrink-0 text-muted" aria-hidden />
+
+            <input
+              id="annotation-search"
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by keyword, phrase or material title..."
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+              aria-describedby="annotation-search-help"
+            />
+
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="rounded-md p-1 text-muted transition hover:bg-paper hover:text-ink"
+                aria-label="Clear search"
+              >
+                <X size={17} aria-hidden />
+              </button>
+            )}
+          </div>
+
+          <p id="annotation-search-help" className="mt-2 text-xs text-muted">
+            Search across the text of your saved notes and highlights.
+          </p>
+        </div>
+
         {/* Annotation tabs */}
         <TabNavigation
           aria-label="Annotation types"
@@ -255,81 +360,175 @@ export function NotesAndBookmarks() {
             </Alert>
           )}
 
-          {/* Bookmarks */}
-          {annotations.state === "ready" && tab === "bookmarks" && (
-            <DataTable<Bookmark>
-              caption="Bookmarks"
-              rows={annotations.bookmarks}
-              getRowKey={(row) => row.id}
-              columns={base<Bookmark>("bookmarks", () => "")}
-              emptyState={empty(
-                "No bookmarks yet",
-                "Use the bookmark button in the reader to mark a page.",
-              )}
-            />
-          )}
+          {/* Search results */}
+          {annotations.state === "ready" && searchTerm.trim() !== "" && (
+            <section aria-live="polite">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-ink">
+                  Search results
+                </h2>
 
-          {/* Notes */}
-          {annotations.state === "ready" && tab === "notes" && (
-            <DataTable<Note>
-              caption="Notes"
-              rows={annotations.notes}
-              getRowKey={(row) => row.id}
-              columns={base<Note>(
-                "notes",
-                (note) => (
-                  <span>
-                    {note.quote && (
-                      <em className="mb-1 block font-serif text-ink/75">
-                        “{note.quote}”
-                      </em>
-                    )}
+                <span className="text-sm text-muted">
+                  {searchResults.length}{" "}
+                  {searchResults.length === 1 ? "result" : "results"}
+                </span>
+              </div>
 
-                    {note.text}
-                  </span>
-                ),
-                (note) => (
-                  <Button
-                    variant="icon"
-                    size="sm"
-                    aria-label={`Edit note on page ${note.page} of ${note.materialTitle}`}
-                    onClick={() => setEditing(note)}
-                  >
-                    <Pencil size={14} aria-hidden />
-                  </Button>
-                ),
-              )}
-              emptyState={empty(
-                "No notes yet",
-                "Select text in the reader and choose Note.",
-              )}
-            />
-          )}
-
-          {/* Highlights */}
-          {annotations.state === "ready" && tab === "highlights" && (
-            <DataTable<Highlight>
-              caption="Highlights"
-              rows={annotations.highlights}
-              getRowKey={(row) => row.id}
-              columns={base<Highlight>("highlights", (highlight) => (
-                <span className="flex items-start gap-2">
-                  <span
-                    className={cx(
-                      "mt-2 size-2 shrink-0 rounded-full",
-                      HIGHLIGHT_DOT[highlight.color],
-                    )}
+              {searchResults.length === 0 ? (
+                <div className="rounded-xl border border-border bg-white px-6 py-10 text-center">
+                  <Search
+                    size={28}
+                    className="mx-auto mb-3 text-muted"
                     aria-hidden
                   />
 
-                  <em className="font-serif">“{highlight.text}”</em>
-                </span>
-              ))}
-              emptyState={empty(
-                "No highlights yet",
-                "Select text in the reader and pick a colour.",
+                  <h3 className="font-semibold text-ink">
+                    No matching notes or highlights
+                  </h3>
+
+                  <p className="mt-2 text-sm text-muted">
+                    Try another keyword or phrase.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {searchResults.map((result) => (
+                    <article
+                      key={`${result.kind}-${result.id}`}
+                      className="rounded-xl border border-border bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <span
+                              className={cx(
+                                "rounded-full px-2.5 py-1 text-xs font-semibold",
+                                result.kind === "Note"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-green-100 text-green-800",
+                              )}
+                            >
+                              {result.kind}
+                            </span>
+
+                            <span className="text-xs text-muted">
+                              Page {result.page}
+                            </span>
+                          </div>
+
+                          <h3 className="font-semibold text-ink">
+                            {result.materialTitle}
+                          </h3>
+
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">
+                            {result.kind === "Highlight"
+                              ? `“${result.content}”`
+                              : result.content}
+                          </p>
+
+                          <p className="mt-3 text-xs text-muted">
+                            Saved {formatTimeAgo(result.createdAt)}
+                          </p>
+                        </div>
+
+                        <Button
+                          to={USER_ROUTES.reader(
+                            result.materialId,
+                            result.page,
+                          )}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Open page
+                        </Button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               )}
-            />
+            </section>
+          )}
+
+          {/* Normal annotation tables appear when search is empty */}
+          {annotations.state === "ready" && searchTerm.trim() === "" && (
+            <>
+              {/* Bookmarks */}
+              {tab === "bookmarks" && (
+                <DataTable<Bookmark>
+                  caption="Bookmarks"
+                  rows={annotations.bookmarks}
+                  getRowKey={(row) => row.id}
+                  columns={base<Bookmark>("bookmarks", () => "")}
+                  emptyState={empty(
+                    "No bookmarks yet",
+                    "Use the bookmark button in the reader to mark a page.",
+                  )}
+                />
+              )}
+
+              {/* Notes */}
+              {tab === "notes" && (
+                <DataTable<Note>
+                  caption="Notes"
+                  rows={annotations.notes}
+                  getRowKey={(row) => row.id}
+                  columns={base<Note>(
+                    "notes",
+                    (note) => (
+                      <span>
+                        {note.quote && (
+                          <em className="mb-1 block font-serif text-ink/75">
+                            “{note.quote}”
+                          </em>
+                        )}
+
+                        {note.text}
+                      </span>
+                    ),
+                    (note) => (
+                      <Button
+                        variant="icon"
+                        size="sm"
+                        aria-label={`Edit note on page ${note.page} of ${note.materialTitle}`}
+                        onClick={() => setEditing(note)}
+                      >
+                        <Pencil size={14} aria-hidden />
+                      </Button>
+                    ),
+                  )}
+                  emptyState={empty(
+                    "No notes yet",
+                    "Select text in the reader and choose Note.",
+                  )}
+                />
+              )}
+
+              {/* Highlights */}
+              {tab === "highlights" && (
+                <DataTable<Highlight>
+                  caption="Highlights"
+                  rows={annotations.highlights}
+                  getRowKey={(row) => row.id}
+                  columns={base<Highlight>("highlights", (highlight) => (
+                    <span className="flex items-start gap-2">
+                      <span
+                        className={cx(
+                          "mt-2 size-2 shrink-0 rounded-full",
+                          HIGHLIGHT_DOT[highlight.color],
+                        )}
+                        aria-hidden
+                      />
+
+                      <em className="font-serif">“{highlight.text}”</em>
+                    </span>
+                  ))}
+                  emptyState={empty(
+                    "No highlights yet",
+                    "Select text in the reader and pick a colour.",
+                  )}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
