@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../../supabase";
+import { supabase } from "../../../supabase"; // Adjust path if needed
 import { getUploadAuthContext, getUploadApiBaseUrl } from "../services/uploadAuth";
 import { PageHeader, Button, ToastNotification, SectionHeader } from "../../../shared";
 
@@ -12,17 +12,17 @@ export default function UploadMaterial() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<"info" | "success" | "error">("info");
 
-  // New state for categories
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   
+  // 1. Added ISBN to the state
   const [formData, setFormData] = useState({ 
     title: "", 
     author: "", 
     description: "", 
-    category_id: "" 
+    category_id: "",
+    isbn: "" 
   });
 
-  // Fetch categories on mount
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase.from("categories").select("id, name").order("name");
@@ -44,8 +44,7 @@ export default function UploadMaterial() {
     
     setLoading(true);
     try {
-      // 1. Try to get the auth context, but fall back to defaults if not logged in
-      let orgId = 5; // Default to 5 (Atlas Institute)
+      let orgId = 5; // Default fallback for local testing
       let userId = null;
       let accessToken = "";
 
@@ -60,7 +59,6 @@ export default function UploadMaterial() {
         console.warn("Using default organisation because auth context failed:", authErr);
       }
 
-      // 2. Upload to Railway/Cloudflare
       const formPayload = new FormData();
       formPayload.append("pdfFile", pdfFile);
       if (coverImage) formPayload.append("coverImage", coverImage);
@@ -82,19 +80,20 @@ export default function UploadMaterial() {
       const uploadData = await res.json();
       if (!res.ok) throw new Error(uploadData.error || "File upload failed.");
 
-      // 3. Save to Supabase
+      // 2. Added ISBN to the insert payload
       const { error: insertError } = await supabase.from("materials").insert({
         title: formData.title,
         author: formData.author,
         description: formData.description,
         category_id: formData.category_id,
+        isbn: formData.isbn || null, // Save null if empty
         file_name: pdfFile.name,
         file_type: uploadData.fileType || pdfFile.type || "application/pdf",
         file_size: pdfFile.size,
         file_url: uploadData.url,
         image_url: uploadData.coverUrl,
         uploaded_by: userId,
-        organisation_id: orgId, // <--- THIS FIXES THE NULL ISSUE
+        organisation_id: orgId,
         status: "published"
       });
 
@@ -153,7 +152,12 @@ export default function UploadMaterial() {
                   <input type="text" className={inputClass} placeholder="e.g. Thomas H. Cormen" onChange={(e) => setFormData({...formData, author: e.target.value})} />
                 </div>
                 
-                {/* DYNAMIC CATEGORY DROPDOWN */}
+                {/* 3. ADDED ISBN INPUT */}
+                <div>
+                  <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">ISBN (Optional)</label>
+                  <input type="text" className={inputClass} placeholder="e.g. 978-3-16-148410-0" onChange={(e) => setFormData({...formData, isbn: e.target.value})} />
+                </div>
+
                 <div>
                   <label className="block text-[13px] font-semibold uppercase tracking-[0.12em] text-muted mb-1">Category</label>
                   <select 

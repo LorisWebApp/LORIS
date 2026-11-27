@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { supabase } from "../supabase";
+import { supabase } from "../../../supabase"; // Adjust path if needed
 import { useAuth } from "../../group-a/contexts/AuthContext";
-import { BookOpen, X, PlayCircle, Headphones, FileText} from "lucide-react";
-import { PageHeader, Button, DetailRow, StatusBadge } from "../shared";
+import { BookOpen, X, PlayCircle, Headphones, FileText } from "lucide-react";
+import { PageHeader, Button, DetailRow, StatusBadge } from "../../../shared"; // Adjust path if needed
 
 export default function MaterialDetails() {
   const { id } = useParams();
@@ -94,6 +94,8 @@ export default function MaterialDetails() {
 
           <div className="mt-8 border-t border-line">
             <DetailRow label="Format" value={getReadableFormat(material.file_type, material.file_url)} divider />
+            {/* ADDED ISBN HERE */}
+            {material.isbn && <DetailRow label="ISBN" value={material.isbn} divider />}
             <DetailRow label="Description" value={material.description || "No description provided."} layout="stacked" divider />
           </div>
 

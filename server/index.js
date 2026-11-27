@@ -56,7 +56,7 @@ app.post('/api/upload', upload.fields([
 
     if (!mainFile) return res.status(400).json({ error: 'No main file uploaded' });
 
-    // Upload Main File
+        // Upload Main File
     const mainConfig = getBucketConfig(mainFile.mimetype, mainFile.originalname);
     const mainKey = `${crypto.randomBytes(8).toString('hex')}-${mainFile.originalname}`;
     
@@ -65,6 +65,7 @@ app.post('/api/upload', upload.fields([
       Key: mainKey,
       Body: mainFile.buffer,
       ContentType: mainFile.mimetype,
+      CacheControl: "public, max-age=2592000, immutable", // <--- ADD THIS LINE
     }));
     const mainUrl = `${mainConfig.url}/${mainKey}`;
 
@@ -77,6 +78,7 @@ app.post('/api/upload', upload.fields([
         Key: coverKey,
         Body: cover.buffer,
         ContentType: cover.mimetype,
+        CacheControl: "public, max-age=2592000, immutable", // <--- ADD THIS LINE
       }));
       coverUrl = `${process.env.URL_IMAGE}/${coverKey}`;
     }

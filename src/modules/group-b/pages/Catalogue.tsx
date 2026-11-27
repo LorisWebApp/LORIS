@@ -12,7 +12,7 @@ export default function Catalogue() {
   
   // States for suggestions and modals
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [toastMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
 
   useEffect(() => {
@@ -30,7 +30,15 @@ export default function Catalogue() {
     fetchMaterials();
   }, [user]);
 
-  const filtered = materials.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()));
+ const filtered = materials.filter(m => {
+  const query = searchQuery.toLowerCase();
+  const matchTitle = m.title?.toLowerCase().includes(query);
+  const matchAuthor = m.author?.toLowerCase().includes(query);
+  const matchCategory = m.category_name?.toLowerCase().includes(query);
+  const matchIsbn = m.isbn?.toLowerCase().includes(query); // <--- ADD THIS
+  
+  return matchTitle || matchAuthor || matchCategory || matchIsbn;
+});
 
   // Get up to 5 suggestions based on what the user types
   const suggestions = searchQuery.trim().length > 0 
@@ -106,6 +114,15 @@ export default function Catalogue() {
               <h2 className="text-[28px] font-serif text-[#0F172A]">Books & E-books</h2>
               <p className="text-[#64748B] mt-1 text-[14px]">Read text-based materials like PDFs and EPUBs.</p>
             </div>
+            <button 
+              onClick={() => {
+                setToastMessage("This feature is being built by Group C.");
+                setTimeout(() => setToastMessage(null), 3000);
+              }}
+              className="flex items-center gap-2 border border-[#E2E8F0] bg-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition"
+            >
+              <Book size={16} /> My saved resources
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -132,7 +149,7 @@ export default function Catalogue() {
           </div>
         </section>
 
-        {/* SECTION 2: DOCUMENTS & PRESENTATIONS (NEW) */}
+        {/* SECTION 2: DOCUMENTS & PRESENTATIONS */}
         <section>
           <div className="flex items-center justify-between mb-6 border-b border-[#E2E8F0] pb-4">
             <div>
