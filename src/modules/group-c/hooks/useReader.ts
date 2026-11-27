@@ -41,6 +41,12 @@ export interface NewHighlight {
 /**
  * Manages all Reader state and actions.
  *
+ * Performance improvements:
+ * - Displays the reading document as soon as it has loaded.
+ * - Loads bookmarks, notes, highlights and progress independently.
+ * - Restores saved progress in the background.
+ * - Prevents background requests from updating an outdated Reader.
+ *
  * Reading progress is:
  * - Prepared whenever the user changes pages.
  * - Saved automatically after a short delay.
@@ -61,8 +67,15 @@ export function useReader(materialId: string, startPage?: number) {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
 
   const startRef = useRef(startPage);
+
   const timer = useRef<number | null>(null);
   const pending = useRef<SavedProgress | null>(null);
+
+  // Identifies the latest document-loading request.
+  const requestId = useRef(0);
+
+  // Prevents background progress restoration from overriding user navigation.
+  const userNavigated = useRef(false);
 
   /**
    * Saves pending reading progress.
@@ -103,12 +116,27 @@ export function useReader(materialId: string, startPage?: number) {
   }, []);
 
   /**
-   * Loads the reader document and the user's saved information.
+   * Loads the reading document first.
+   *
+   * Supporting information is fetched separately after the document
+   * is ready, so it does not delay opening the Reader.
    */
   const load = useCallback(async () => {
-    startRef.current = startPage;
+    const currentRequest = ++requestId.current;
 
+    const isCurrentRequest = () => requestId.current === currentRequest;
+
+    startRef.current = startPage;
+    userNavigated.current = false;
+
+    // Reset the previous material's state.
     setError("");
+    setDoc(null);
+    setSource("online");
+    setPage(1);
+    setBookmarks([]);
+    setNotes([]);
+    setHighlights([]);
     setStatus("loading");
 
     try {
@@ -116,56 +144,114 @@ export function useReader(materialId: string, startPage?: number) {
         throw new Error("A valid material ID is required.");
       }
 
+      // STEP 1: Load the actual reading document.
       const loaded = await getReaderDocument(materialId);
+
+      // Ignore results belonging to an outdated request.
+      if (!isCurrentRequest()) {
+        return;
+      }
 
       if (!loaded.doc.pages.length) {
         throw new Error("This material does not contain any readable pages.");
       }
 
-      const [savedBookmarks, savedNotes, savedHighlights, progress] =
-        await Promise.all([
-          bookmarksService.list(materialId).catch((e) => {
-            console.error("Could not load bookmarks:", e);
-            return [];
-          }),
-
-          notesService.list(materialId).catch((e) => {
-            console.error("Could not load notes:", e);
-            return [];
-          }),
-
-          highlightsService.list(materialId).catch((e) => {
-            console.error("Could not load highlights:", e);
-            return [];
-          }),
-
-          readingProgressService.get(materialId).catch((e) => {
-            console.error("Could not load reading progress:", e);
-            return null;
-          }),
-        ]);
+      // STEP 2: Display the document immediately.
+      const initialPage = clamp(
+        startRef.current ?? 1,
+        1,
+        loaded.doc.pages.length,
+      );
 
       setDoc(loaded.doc);
       setSource(loaded.source);
-
-      setBookmarks(savedBookmarks);
-      setNotes(savedNotes);
-      setHighlights(savedHighlights);
-
-      const initialPage = startRef.current ?? progress?.page ?? 1;
-
-      setPage(clamp(initialPage, 1, loaded.doc.pages.length));
-
+      setPage(initialPage);
       setStatus("ready");
 
-      console.log("Reader loaded successfully:", {
+      console.log("Reader document ready:", {
         materialId,
         title: loaded.doc.title,
         totalPages: loaded.doc.pages.length,
-        savedPage: progress?.page ?? null,
         source: loaded.source,
       });
+
+      // STEP 3: Load bookmarks independently in the background.
+      void bookmarksService
+        .list(materialId)
+        .then((savedBookmarks) => {
+          if (!isCurrentRequest()) return;
+
+          setBookmarks(savedBookmarks);
+        })
+        .catch((e: unknown) => {
+          if (!isCurrentRequest()) return;
+
+          console.error("Could not load bookmarks:", e);
+        });
+
+      // STEP 4: Load notes independently in the background.
+      void notesService
+        .list(materialId)
+        .then((savedNotes) => {
+          if (!isCurrentRequest()) return;
+
+          setNotes(savedNotes);
+        })
+        .catch((e: unknown) => {
+          if (!isCurrentRequest()) return;
+
+          console.error("Could not load notes:", e);
+        });
+
+      // STEP 5: Load highlights independently in the background.
+      void highlightsService
+        .list(materialId)
+        .then((savedHighlights) => {
+          if (!isCurrentRequest()) return;
+
+          setHighlights(savedHighlights);
+        })
+        .catch((e: unknown) => {
+          if (!isCurrentRequest()) return;
+
+          console.error("Could not load highlights:", e);
+        });
+
+      // STEP 6: Restore reading progress in the background.
+      void readingProgressService
+        .get(materialId)
+        .then((progress) => {
+          if (!isCurrentRequest() || !progress) {
+            return;
+          }
+
+          /*
+           * Restore saved progress only when:
+           * - No specific start page was requested.
+           * - The user has not already navigated to another page.
+           */
+          if (startRef.current === undefined && !userNavigated.current) {
+            const savedPage = clamp(progress.page, 1, loaded.doc.pages.length);
+
+            setPage(savedPage);
+
+            console.log("Restored saved reading progress:", {
+              materialId,
+              savedPage,
+            });
+          }
+        })
+        .catch((e: unknown) => {
+          if (!isCurrentRequest()) return;
+
+          console.error("Could not load reading progress:", e);
+        });
     } catch (e) {
+      // An older request must not overwrite the current Reader.
+      if (!isCurrentRequest()) {
+        return;
+      }
+
       console.error("Reader loading failed:", e);
 
       setError(
@@ -178,12 +264,15 @@ export function useReader(materialId: string, startPage?: number) {
 
   /**
    * Load the document when the material changes.
-   * Flush pending progress when leaving the Reader.
+   * Invalidate outstanding requests and flush progress when leaving.
    */
   useEffect(() => {
     void load();
 
     return () => {
+      // Prevent old requests from updating state after cleanup.
+      requestId.current += 1;
+
       flush();
     };
   }, [load, flush]);
@@ -201,6 +290,9 @@ export function useReader(materialId: string, startPage?: number) {
       }
 
       const nextPage = clamp(Math.round(next) || 1, 1, doc.pages.length);
+
+      // Record that the user has manually navigated.
+      userNavigated.current = true;
 
       setPage(nextPage);
 
@@ -404,7 +496,7 @@ export function useReader(materialId: string, startPage?: number) {
       } catch (e) {
         console.error("Removing highlight failed:", e);
 
-        return fail("We couldn’t remove that highlight.");
+        return fail("We couldn’t remove that highlight. Please try again.");
       }
     },
     [],

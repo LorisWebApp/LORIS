@@ -5,11 +5,13 @@
  * No backend connection is required.
  */
 
-export type ReaderTheme = "light" | "sepia" | "dark";
+export type ReaderTheme = "light" | "sepia" | "dark" | "green";
 
 export type LineSpacing = "compact" | "normal" | "relaxed";
 
 export type ReadingLayout = "focused" | "wide";
+
+export type ReaderFontFamily = "serif" | "sans" | "system";
 
 export type AppTextSize = "default" | "large" | "larger";
 
@@ -18,6 +20,7 @@ export type Landing = "dashboard" | "library";
 export interface Preferences {
   reading: {
     fontSizeIndex: number;
+    fontFamily: ReaderFontFamily;
     theme: ReaderTheme;
     lineSpacing: LineSpacing;
     layout: ReadingLayout;
@@ -45,6 +48,7 @@ export interface Preferences {
 export const DEFAULT_PREFERENCES: Preferences = {
   reading: {
     fontSizeIndex: 1,
+    fontFamily: "serif",
     theme: "light",
     lineSpacing: "normal",
     layout: "focused",
@@ -94,11 +98,15 @@ function mergePreferences(stored: Partial<Preferences>): Preferences {
         typeof reading.fontSizeIndex === "number" &&
         Number.isInteger(reading.fontSizeIndex) &&
         reading.fontSizeIndex >= 0 &&
-        reading.fontSizeIndex <= 5
+        reading.fontSizeIndex <= 4
           ? reading.fontSizeIndex
           : DEFAULT_PREFERENCES.reading.fontSizeIndex,
 
-      theme: isOneOf(reading.theme, ["light", "sepia", "dark"])
+      fontFamily: isOneOf(reading.fontFamily, ["serif", "sans", "system"])
+        ? reading.fontFamily
+        : DEFAULT_PREFERENCES.reading.fontFamily,
+
+      theme: isOneOf(reading.theme, ["light", "sepia", "dark", "green"])
         ? reading.theme
         : DEFAULT_PREFERENCES.reading.theme,
 

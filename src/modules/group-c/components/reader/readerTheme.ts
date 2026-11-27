@@ -6,7 +6,6 @@ import type {
 /**
  * Reading-surface themes.
  * The application chrome stays light.
- * Colours follow the Group B Velvet Teal design system.
  */
 export const READER_THEMES: Record<
   ReaderTheme,
@@ -36,6 +35,13 @@ export const READER_THEMES: Record<
     page: "bg-[#0A3D42]",
     text: "text-[#F0FAFB]",
     muted: "text-[#A8D9DC]",
+  },
+
+  green: {
+    surface: "bg-[#DCEBDD]",
+    page: "bg-[#EDF5E9]",
+    text: "text-[#203D2A]",
+    muted: "text-[#58745D]",
   },
 };
 

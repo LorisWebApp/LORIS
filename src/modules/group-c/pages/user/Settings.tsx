@@ -27,6 +27,7 @@ import type {
   Landing,
   LineSpacing,
   Preferences,
+  ReaderFontFamily,
   ReaderTheme,
   ReadingLayout,
 } from "../../services/preferences.service";
@@ -89,6 +90,13 @@ export function Settings() {
 
   const card = "space-y-5";
 
+  const previewFontFamily: React.CSSProperties["fontFamily"] =
+    prefs.reading.fontFamily === "serif"
+      ? "Georgia, 'Times New Roman', serif"
+      : prefs.reading.fontFamily === "sans"
+        ? "Arial, Helvetica, sans-serif"
+        : "system-ui, sans-serif";
+
   return (
     <div className="min-h-screen">
       <PageHeader
@@ -111,6 +119,7 @@ export function Settings() {
               divider
             />
 
+            {/* Font size */}
             <ChoiceGroup
               legend="Default font size"
               value={String(fontIndex)}
@@ -129,6 +138,28 @@ export function Settings() {
               }
             />
 
+            {/* Font family */}
+            <ChoiceGroup<ReaderFontFamily>
+              legend="Font family"
+              value={prefs.reading.fontFamily}
+              options={[
+                { value: "serif", label: "Serif" },
+                { value: "sans", label: "Sans-serif" },
+                { value: "system", label: "System default" },
+              ]}
+              hint="Choose the lettering style used when reading."
+              onChange={(value) =>
+                change((p) => ({
+                  ...p,
+                  reading: {
+                    ...p.reading,
+                    fontFamily: value,
+                  },
+                }))
+              }
+            />
+
+            {/* Reading theme */}
             <ChoiceGroup<ReaderTheme>
               legend="Reading theme"
               value={prefs.reading.theme}
@@ -136,6 +167,7 @@ export function Settings() {
                 { value: "light", label: "Light" },
                 { value: "sepia", label: "Sepia" },
                 { value: "dark", label: "Dark" },
+                { value: "green", label: "Green" },
               ]}
               onChange={(value) =>
                 change((p) => ({
@@ -148,6 +180,7 @@ export function Settings() {
               }
             />
 
+            {/* Line spacing */}
             <ChoiceGroup<LineSpacing>
               legend="Line spacing"
               value={prefs.reading.lineSpacing}
@@ -167,6 +200,7 @@ export function Settings() {
               }
             />
 
+            {/* Reading layout */}
             <ChoiceGroup<ReadingLayout>
               legend="Default reading layout"
               value={prefs.reading.layout}
@@ -383,6 +417,7 @@ export function Settings() {
             <div
               className={cx("px-6 py-8", theme.page, theme.text)}
               style={{
+                fontFamily: previewFontFamily,
                 fontSize: `${18 * FONT_SCALES[fontIndex]}px`,
                 lineHeight: LINE_HEIGHT[prefs.reading.lineSpacing],
                 letterSpacing: prefs.accessibility.letterSpacing
@@ -395,7 +430,7 @@ export function Settings() {
                   : undefined,
               }}
             >
-              <p className="m-0 font-serif">
+              <p className="m-0">
                 Attention is not a passive sensory filter; it is the currency
                 through which conscious reality is financed.
               </p>
@@ -404,6 +439,7 @@ export function Settings() {
         </aside>
       </div>
 
+      {/* Reset confirmation */}
       <ConfirmationDialog
         open={confirmReset}
         title="Reset all preferences?"
@@ -428,6 +464,7 @@ export function Settings() {
         }}
       />
 
+      {/* Feedback notification */}
       <ToastNotification
         open={toast !== null}
         variant={toast?.variant ?? "info"}
