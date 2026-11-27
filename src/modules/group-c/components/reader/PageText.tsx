@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import type { ClipboardEvent, DragEvent, MouseEvent } from "react";
 
 import type { Highlight, ReaderPage } from "../../types/reader.types";
 import type { Preferences } from "../../services/preferences.service";
@@ -13,7 +14,6 @@ export interface PageTextProps {
   chapterTitle?: string;
   highlights: Highlight[];
   fontScale: number;
-  /** Reading preferences from Settings. */
   prefs: Preferences;
   onSelect: (selection: TextSelectionInfo | null) => void;
 }
@@ -23,7 +23,6 @@ interface TextSegment {
   highlight?: Highlight;
 }
 
-/** Splits paragraph text into normal and highlighted segments. */
 function split(text: string, highlights: Highlight[]): TextSegment[] {
   const output: TextSegment[] = [];
   let cursor = 0;
@@ -43,9 +42,7 @@ function split(text: string, highlights: Highlight[]): TextSegment[] {
     }
 
     if (highlight.start > cursor) {
-      output.push({
-        text: text.slice(cursor, highlight.start),
-      });
+      output.push({ text: text.slice(cursor, highlight.start) });
     }
 
     output.push({
@@ -57,15 +54,41 @@ function split(text: string, highlights: Highlight[]): TextSegment[] {
   }
 
   if (cursor < text.length) {
-    output.push({
-      text: text.slice(cursor),
-    });
+    output.push({ text: text.slice(cursor) });
   }
 
   return output;
 }
 
-/** One page of text with highlights and text-selection support. */
+/**
+ * Finds the paragraph even when the browser selection boundary
+ * is positioned directly on the paragraph element.
+ */
+function getParagraphElement(node: Node): HTMLElement | null {
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    return (node as Element).closest<HTMLElement>("[data-paragraph]");
+  }
+
+  return node.parentElement?.closest<HTMLElement>("[data-paragraph]") ?? null;
+}
+
+/**
+ * Calculates a selection boundary's character position
+ * relative to the beginning of its paragraph.
+ */
+function getTextOffset(
+  paragraph: HTMLElement,
+  container: Node,
+  offset: number,
+): number {
+  const range = document.createRange();
+
+  range.setStart(paragraph, 0);
+  range.setEnd(container, offset);
+
+  return range.toString().length;
+}
+
 export function PageText({
   page,
   chapterTitle,
@@ -84,20 +107,12 @@ export function PageText({
 
     const range = selection.getRangeAt(0);
 
-    const startElement =
-      range.startContainer.parentElement?.closest<HTMLElement>(
-        "[data-paragraph]",
-      );
+    const startElement = getParagraphElement(range.startContainer);
+    const endElement = getParagraphElement(range.endContainer);
 
-    const endElement =
-      range.endContainer.parentElement?.closest<HTMLElement>(
-        "[data-paragraph]",
-      );
-
-    const selectedText = selection.toString();
-
-    // Only support selections within a single paragraph.
-    if (!startElement || startElement !== endElement || !selectedText.trim()) {
+    // Annotations are stored within one paragraph.
+    // Selecting any amount of text inside that paragraph is allowed.
+    if (!startElement || !endElement || startElement !== endElement) {
       onSelect(null);
       return;
     }
@@ -111,25 +126,42 @@ export function PageText({
 
     const paragraphText = page.paragraphs[paragraphIndex];
 
-    if (typeof paragraphText !== "string") {
+    if (typeof paragraphText !== "string" || !paragraphText.length) {
       onSelect(null);
       return;
     }
 
-    const beforeRange = document.createRange();
+    let start: number;
+    let end: number;
 
     try {
-      beforeRange.selectNodeContents(startElement);
-      beforeRange.setEnd(range.startContainer, range.startOffset);
+      start = getTextOffset(
+        startElement,
+        range.startContainer,
+        range.startOffset,
+      );
+
+      end = getTextOffset(startElement, range.endContainer, range.endOffset);
     } catch {
       onSelect(null);
       return;
     }
 
-    const start = beforeRange.toString().length;
-    const end = start + selectedText.length;
+    // Validate the calculated positions against the original paragraph.
+    if (
+      !Number.isInteger(start) ||
+      !Number.isInteger(end) ||
+      start < 0 ||
+      end > paragraphText.length ||
+      end <= start
+    ) {
+      onSelect(null);
+      return;
+    }
 
-    if (start < 0 || end > paragraphText.length || end <= start) {
+    const exactSelectedText = paragraphText.slice(start, end);
+
+    if (!exactSelectedText.trim()) {
       onSelect(null);
       return;
     }
@@ -141,47 +173,25 @@ export function PageText({
       paragraph: paragraphIndex,
       start,
       end,
-      text: selectedText,
+      text: exactSelectedText,
       x: rect.left + rect.width / 2,
       y: rect.top,
     });
   }, [page, onSelect]);
 
-  /**
-   * Prevent copying and cutting text from the reading area.
-   * Text selection remains enabled for highlighting and notes.
-   */
-  const preventCopyOrCut = useCallback(
-    (event: React.ClipboardEvent<HTMLElement>) => {
-      event.preventDefault();
-    },
-    [],
-  );
+  const preventCopyOrCut = useCallback((event: ClipboardEvent<HTMLElement>) => {
+    event.preventDefault();
+  }, []);
 
-  /**
-   * Prevent pasting into the reading area.
-   */
-  const preventPaste = useCallback(
-    (event: React.ClipboardEvent<HTMLElement>) => {
-      event.preventDefault();
-    },
-    [],
-  );
+  const preventPaste = useCallback((event: ClipboardEvent<HTMLElement>) => {
+    event.preventDefault();
+  }, []);
 
-  /**
-   * Disable the browser context menu inside the reading area.
-   */
-  const preventContextMenu = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
-      event.preventDefault();
-    },
-    [],
-  );
+  const preventContextMenu = useCallback((event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+  }, []);
 
-  /**
-   * Prevent dragging text out of the reader.
-   */
-  const preventDrag = useCallback((event: React.DragEvent<HTMLElement>) => {
+  const preventDrag = useCallback((event: DragEvent<HTMLElement>) => {
     event.preventDefault();
   }, []);
 

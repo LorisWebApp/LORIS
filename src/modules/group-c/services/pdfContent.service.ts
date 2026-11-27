@@ -126,7 +126,8 @@ export async function getPdfReaderDocument(
     }
     if (!chapters.length) chapters.push({ id: "ch-1", title: title, page: 1 });
     chapters.sort((a, b) => a.page - b.page);
-    // Assign each page to the last chapter that starts on or before it.
+    // Assign each page
+    // to the last chapter that starts on or before it.
     for (const p of pages)
       p.chapterId =
         [...chapters].reverse().find((c) => c.page <= p.number)?.id ??
