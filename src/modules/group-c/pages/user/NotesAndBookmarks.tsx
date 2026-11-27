@@ -19,7 +19,6 @@ import {
 } from "../../components/user/sharedUi";
 
 import { USER_ROUTES } from "../../config/userRoutes";
-
 import { useAnnotations } from "../../hooks/useAnnotations";
 
 import type { Bookmark, Highlight, Note } from "../../types/reader.types";
@@ -44,7 +43,7 @@ interface Row {
 
 interface SearchResult {
   id: string;
-  kind: "Note" | "Highlight";
+  kind: "Bookmark" | "Note" | "Highlight";
   materialId: string;
   materialTitle: string;
   page: number;
@@ -77,14 +76,33 @@ export function NotesAndBookmarks() {
   }, []);
 
   /**
-   * Searches the current user's notes and highlights.
-   *
-   * Matching is case-insensitive and includes material titles.
+   * Searches all three annotation categories.
+   * Results are filtered by the currently selected tab.
    */
   const searchResults = useMemo<SearchResult[]>(() => {
     const term = searchTerm.trim().toLowerCase();
 
     if (!term) return [];
+
+    const matchingBookmarks = annotations.bookmarks
+      .filter((bookmark) => {
+        const searchableText = [bookmark.label ?? "", bookmark.materialTitle]
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(term);
+      })
+      .map(
+        (bookmark): SearchResult => ({
+          id: bookmark.id,
+          kind: "Bookmark",
+          materialId: bookmark.materialId,
+          materialTitle: bookmark.materialTitle,
+          page: bookmark.page,
+          content: bookmark.label ?? "",
+          createdAt: bookmark.createdAt,
+        }),
+      );
 
     const matchingNotes = annotations.notes
       .filter((note) => {
@@ -126,10 +144,28 @@ export function NotesAndBookmarks() {
         }),
       );
 
-    return [...matchingNotes, ...matchingHighlights].sort((first, second) =>
-      second.createdAt.localeCompare(first.createdAt),
-    );
-  }, [searchTerm, annotations.notes, annotations.highlights]);
+    const allResults = [
+      ...matchingBookmarks,
+      ...matchingNotes,
+      ...matchingHighlights,
+    ];
+
+    const selectedKind = {
+      bookmarks: "Bookmark",
+      notes: "Note",
+      highlights: "Highlight",
+    }[tab];
+
+    return allResults
+      .filter((result) => result.kind === selectedKind)
+      .sort((first, second) => second.createdAt.localeCompare(first.createdAt));
+  }, [
+    searchTerm,
+    tab,
+    annotations.bookmarks,
+    annotations.notes,
+    annotations.highlights,
+  ]);
 
   /**
    * Deletes the selected annotation after confirmation.
@@ -261,6 +297,12 @@ export function NotesAndBookmarks() {
     />
   );
 
+  const searchCategory = {
+    bookmarks: "bookmarks",
+    notes: "notes",
+    highlights: "highlights",
+  }[tab];
+
   return (
     <div className="min-h-screen">
       {/* Page heading */}
@@ -274,13 +316,13 @@ export function NotesAndBookmarks() {
       />
 
       <div className="mx-auto w-full max-w-[1312px] px-4 py-8 lg:px-10">
-        {/* Search personal notes and highlights */}
+        {/* Search */}
         <div className="mb-6">
           <label
             htmlFor="annotation-search"
             className="mb-2 block text-sm font-semibold text-ink"
           >
-            Search your notes and highlights
+            Search your notes, bookmarks and highlights
           </label>
 
           <div className="flex items-center gap-3 rounded-xl border border-border bg-white px-4 py-3 shadow-sm focus-within:border-ink">
@@ -309,7 +351,8 @@ export function NotesAndBookmarks() {
           </div>
 
           <p id="annotation-search-help" className="mt-2 text-xs text-muted">
-            Search across the text of your saved notes and highlights.
+            Search across your saved bookmarks, notes and highlights. Select a
+            category below to filter the results.
           </p>
         </div>
 
@@ -317,7 +360,11 @@ export function NotesAndBookmarks() {
         <TabNavigation
           aria-label="Annotation types"
           activeId={tab}
-          onChange={(id) => setTab(id as Tab)}
+          onChange={(id) => {
+            if (id === "bookmarks" || id === "notes" || id === "highlights") {
+              setTab(id);
+            }
+          }}
           tabs={[
             {
               id: "bookmarks",
@@ -360,12 +407,14 @@ export function NotesAndBookmarks() {
             </Alert>
           )}
 
-          {/* Search results */}
+          {/* Filtered search results */}
           {annotations.state === "ready" && searchTerm.trim() !== "" && (
             <section aria-live="polite">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold text-ink">
-                  Search results
+                  {tab === "bookmarks" && "Bookmark search results"}
+                  {tab === "notes" && "Note search results"}
+                  {tab === "highlights" && "Highlight search results"}
                 </h2>
 
                 <span className="text-sm text-muted">
@@ -383,11 +432,11 @@ export function NotesAndBookmarks() {
                   />
 
                   <h3 className="font-semibold text-ink">
-                    No matching notes or highlights
+                    No matching {searchCategory}
                   </h3>
 
                   <p className="mt-2 text-sm text-muted">
-                    Try another keyword or phrase.
+                    Try another keyword or phrase, or select another category.
                   </p>
                 </div>
               ) : (
@@ -405,7 +454,9 @@ export function NotesAndBookmarks() {
                                 "rounded-full px-2.5 py-1 text-xs font-semibold",
                                 result.kind === "Note"
                                   ? "bg-amber-100 text-amber-800"
-                                  : "bg-green-100 text-green-800",
+                                  : result.kind === "Bookmark"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-green-100 text-green-800",
                               )}
                             >
                               {result.kind}
@@ -420,11 +471,13 @@ export function NotesAndBookmarks() {
                             {result.materialTitle}
                           </h3>
 
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">
-                            {result.kind === "Highlight"
-                              ? `“${result.content}”`
-                              : result.content}
-                          </p>
+                          {result.content && (
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">
+                              {result.kind === "Highlight"
+                                ? `“${result.content}”`
+                                : result.content}
+                            </p>
+                          )}
 
                           <p className="mt-3 text-xs text-muted">
                             Saved {formatTimeAgo(result.createdAt)}
@@ -449,7 +502,7 @@ export function NotesAndBookmarks() {
             </section>
           )}
 
-          {/* Normal annotation tables appear when search is empty */}
+          {/* Normal annotation tables when search is empty */}
           {annotations.state === "ready" && searchTerm.trim() === "" && (
             <>
               {/* Bookmarks */}

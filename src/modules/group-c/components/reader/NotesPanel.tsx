@@ -23,7 +23,6 @@ export interface NotesPanelProps {
   onDeleteNote: (id: string) => void;
   onDeleteBookmark: (id: string) => void;
   onDeleteHighlight: (id: string) => void;
-  /** Mobile: panel is a slide-over that can be closed. */
   onClose?: () => void;
   className?: string;
 }
@@ -52,6 +51,7 @@ export function NotesPanel({
   const [tab, setTab] = useState<Tab>("contents");
 
   const currentChapter = doc.pages[page - 1]?.chapterId;
+
   const annotationCount = notes.length + highlights.length;
 
   const sortedBookmarks = [...bookmarks].sort((a, b) => a.page - b.page);
@@ -64,17 +64,21 @@ export function NotesPanel({
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-4 pt-3">
+      <div className="flex min-w-0 items-center justify-between gap-2 px-4 pt-3">
         <TabNavigation
           aria-label="Side panel sections"
           activeId={tab}
+          className="min-w-0 flex-1 gap-4"
           onChange={(id) => {
             if (id === "contents" || id === "bookmarks" || id === "notes") {
               setTab(id);
             }
           }}
           tabs={[
-            { id: "contents", label: "Contents" },
+            {
+              id: "contents",
+              label: "Contents",
+            },
             {
               id: "bookmarks",
               label: "Bookmarks",
@@ -82,8 +86,7 @@ export function NotesPanel({
             },
             {
               id: "notes",
-              label: "Notes",
-              count: annotationCount,
+              label: `Notes (${notes.length})`,
             },
           ]}
         />
@@ -128,6 +131,7 @@ export function NotesPanel({
                     )}
                   >
                     {chapter.title}
+
                     <span className="float-right text-muted">
                       {chapter.page}
                     </span>
@@ -155,6 +159,7 @@ export function NotesPanel({
                     className={cx(rowButton, "flex-1 text-deep")}
                   >
                     {bookmark.label}
+
                     <span className="ml-2 text-muted">p. {bookmark.page}</span>
                   </button>
 

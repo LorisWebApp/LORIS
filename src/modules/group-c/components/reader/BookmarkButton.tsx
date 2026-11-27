@@ -7,7 +7,7 @@ export interface BookmarkButtonProps {
   disabled?: boolean;
 }
 
-/** Adds or removes a bookmark for the page being read. */
+/** Adds or removes a bookmark for the current reading page. */
 export function BookmarkButton({
   active,
   onToggle,
@@ -16,21 +16,24 @@ export function BookmarkButton({
   return (
     <Button
       type="button"
-      variant="icon"
+      variant="outline"
       tone="inverse"
-      filled={active}
+      size="sm"
+      disabled={disabled}
       aria-label={
         active ? "Remove bookmark from this page" : "Bookmark this page"
       }
       aria-pressed={active}
-      disabled={disabled}
       onClick={onToggle}
+      leftIcon={
+        <Bookmark
+          size={17}
+          fill={active ? "currentColor" : "none"}
+          aria-hidden="true"
+        />
+      }
     >
-      <Bookmark
-        size={18}
-        fill={active ? "currentColor" : "none"}
-        aria-hidden="true"
-      />
+      {active ? "Bookmarked" : "Bookmark"}
     </Button>
   );
 }

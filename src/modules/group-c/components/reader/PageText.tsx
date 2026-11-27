@@ -89,6 +89,110 @@ function getTextOffset(
   return range.toString().length;
 }
 
+/**
+ * Checks whether a character is sentence-ending punctuation.
+ */
+function isSentencePunctuation(character: string): boolean {
+  return (
+    character === "." ||
+    character === "!" ||
+    character === "?" ||
+    character === "…"
+  );
+}
+
+/**
+ * Characters that can appear immediately after sentence punctuation.
+ * For example: "Hello!" or 'Hello!'
+ */
+function isClosingCharacter(character: string): boolean {
+  return (
+    character === '"' ||
+    character === "'" ||
+    character === "”" ||
+    character === "’" ||
+    character === ")" ||
+    character === "]" ||
+    character === "}"
+  );
+}
+
+/**
+ * Determines whether punctuation marks the end of a sentence.
+ *
+ * Punctuation followed by whitespace or the end of the paragraph
+ * is treated as a sentence boundary.
+ */
+function isSentenceBoundary(text: string, index: number): boolean {
+  if (!isSentencePunctuation(text[index])) {
+    return false;
+  }
+
+  let nextIndex = index + 1;
+
+  while (nextIndex < text.length && isClosingCharacter(text[nextIndex])) {
+    nextIndex++;
+  }
+
+  return nextIndex === text.length || /\s/.test(text[nextIndex]);
+}
+
+/**
+ * Expands the user's selection to include every complete sentence
+ * touched by the selection.
+ *
+ * The returned positions remain relative to the original paragraph,
+ * so existing highlight storage continues to work.
+ */
+function expandToFullSentences(
+  text: string,
+  selectionStart: number,
+  selectionEnd: number,
+): { start: number; end: number } {
+  let start = 0;
+  let end = text.length;
+
+  // Find the beginning of the sentence containing the selection.
+  for (let index = 0; index < selectionStart; index++) {
+    if (isSentenceBoundary(text, index)) {
+      let nextIndex = index + 1;
+
+      while (nextIndex < text.length && isClosingCharacter(text[nextIndex])) {
+        nextIndex++;
+      }
+
+      if (nextIndex <= selectionStart) {
+        while (nextIndex < text.length && /\s/.test(text[nextIndex])) {
+          nextIndex++;
+        }
+
+        start = nextIndex;
+      }
+    }
+  }
+
+  // Find the end of the sentence containing the selection.
+  for (let index = selectionStart; index < text.length; index++) {
+    if (isSentenceBoundary(text, index)) {
+      let sentenceEnd = index + 1;
+
+      while (
+        sentenceEnd < text.length &&
+        isClosingCharacter(text[sentenceEnd])
+      ) {
+        sentenceEnd++;
+      }
+
+      if (sentenceEnd >= selectionEnd) {
+        end = sentenceEnd;
+        break;
+      }
+    }
+  }
+
+  return { start, end };
+}
+
 export function PageText({
   page,
   chapterTitle,
@@ -111,7 +215,6 @@ export function PageText({
     const endElement = getParagraphElement(range.endContainer);
 
     // Annotations are stored within one paragraph.
-    // Selecting any amount of text inside that paragraph is allowed.
     if (!startElement || !endElement || startElement !== endElement) {
       onSelect(null);
       return;
@@ -131,37 +234,47 @@ export function PageText({
       return;
     }
 
-    let start: number;
-    let end: number;
+    let rawStart: number;
+    let rawEnd: number;
 
     try {
-      start = getTextOffset(
+      rawStart = getTextOffset(
         startElement,
         range.startContainer,
         range.startOffset,
       );
 
-      end = getTextOffset(startElement, range.endContainer, range.endOffset);
+      rawEnd = getTextOffset(startElement, range.endContainer, range.endOffset);
     } catch {
       onSelect(null);
       return;
     }
 
-    // Validate the calculated positions against the original paragraph.
+    // Validate the original browser selection.
     if (
-      !Number.isInteger(start) ||
-      !Number.isInteger(end) ||
-      start < 0 ||
-      end > paragraphText.length ||
-      end <= start
+      !Number.isInteger(rawStart) ||
+      !Number.isInteger(rawEnd) ||
+      rawStart < 0 ||
+      rawEnd > paragraphText.length ||
+      rawEnd <= rawStart
     ) {
       onSelect(null);
       return;
     }
 
-    const exactSelectedText = paragraphText.slice(start, end);
+    const exactSelectedText = paragraphText.slice(rawStart, rawEnd);
 
     if (!exactSelectedText.trim()) {
+      onSelect(null);
+      return;
+    }
+
+    // Expand the selection to complete sentences.
+    const expanded = expandToFullSentences(paragraphText, rawStart, rawEnd);
+
+    const selectedText = paragraphText.slice(expanded.start, expanded.end);
+
+    if (!selectedText.trim()) {
       onSelect(null);
       return;
     }
@@ -171,9 +284,9 @@ export function PageText({
     onSelect({
       page: page.number,
       paragraph: paragraphIndex,
-      start,
-      end,
-      text: exactSelectedText,
+      start: expanded.start,
+      end: expanded.end,
+      text: selectedText,
       x: rect.left + rect.width / 2,
       y: rect.top,
     });
